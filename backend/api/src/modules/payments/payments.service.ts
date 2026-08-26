@@ -97,18 +97,21 @@ export class PaymentsService {
     if (payment.status === PaymentStatus.UNDER_REVIEW)
       throw new BadRequestException('Payment is already under review');
 
-    // Duplicate UTR check across all payments
-    const utrUpper = dto.utrNumber.trim().toUpperCase();
-    const duplicate = await this.paymentModel.findOne({
-      'submission.utrNumber': utrUpper,
-      _id: { $ne: payment._id },
-    });
-    if (duplicate) throw new BadRequestException('This UTR number has already been submitted');
+    // Duplicate UTR check — skip for cash/cheque where there's no UTR
+    const isCashOrCheque = ['CASH', 'CHEQUE'].includes(dto.paymentMethod);
+    const utrUpper = dto.utrNumber?.trim().toUpperCase() || '';
+    if (utrUpper && !isCashOrCheque) {
+      const duplicate = await this.paymentModel.findOne({
+        'submission.utrNumber': utrUpper,
+        _id: { $ne: payment._id },
+      });
+      if (duplicate) throw new BadRequestException('This UTR number has already been submitted');
+    }
 
     await this.paymentModel.updateOne({ _id: payment._id }, {
       status: PaymentStatus.PAYMENT_SUBMITTED,
       submission: {
-        screenshotPath: dto.screenshotPath,
+        screenshotPath: dto.screenshotPath ?? '',
         utrNumber: utrUpper,
         paymentMethod: dto.paymentMethod,
         paymentApp: dto.paymentApp,
@@ -309,7 +312,7 @@ export class PaymentsService {
   async findOne(id: string, userId: string, role: string) {
     const payment = await this.paymentModel.findById(id)
       .populate({ path: 'tenantId', populate: { path: 'userId', model: 'User' } })
-      .populate('propertyId', 'name address');
+      .populate('propertyId', 'name address paymentMethods');
 
     if (!payment || payment.isDeleted) throw new NotFoundException('Payment not found');
 

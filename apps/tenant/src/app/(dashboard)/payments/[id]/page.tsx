@@ -16,11 +16,20 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 const schema = z.object({
-  utrNumber: z.string().min(8, 'UTR must be at least 8 characters').regex(/^[A-Za-z0-9]+$/, 'Alphanumeric only'),
+  utrNumber: z.string().optional(),
   paymentMethod: z.enum(['UPI', 'BANK_TRANSFER', 'CASH', 'CHEQUE', 'OTHER']),
   paymentApp: z.string().optional(),
   paidAmount: z.number({ invalid_type_error: 'Enter a valid amount' }).positive('Must be positive'),
   note: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  // UTR is required for digital payments, optional for cash/cheque
+  const needsUtr = !['CASH', 'CHEQUE'].includes(data.paymentMethod);
+  if (needsUtr && (!data.utrNumber || data.utrNumber.trim().length < 8)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'UTR must be at least 8 characters', path: ['utrNumber'] });
+  }
+  if (data.utrNumber && !/^[A-Za-z0-9]*$/.test(data.utrNumber)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Alphanumeric only', path: ['utrNumber'] });
+  }
 });
 type Form = z.infer<typeof schema>;
 
@@ -111,9 +120,12 @@ export default function TenantPaymentDetailPage() {
   };
 
   // ── Submit ────────────────────────────────────────────────────────────────
+  const isCashOrCheque = ['CASH', 'CHEQUE'].includes(paymentMethod);
+  const needsScreenshot = !isCashOrCheque;
+
   const { mutate: submit, isPending, isError, error } = useMutation({
     mutationFn: (data: Form) =>
-      apiClient.post(`/api/v1/payments/${id}/submit`, { ...data, screenshotPath: upload.path }),
+      apiClient.post(`/api/v1/payments/${id}/submit`, { ...data, screenshotPath: upload.path || '' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-payment', id] });
       qc.invalidateQueries({ queryKey: ['my-payments'] });
@@ -122,7 +134,7 @@ export default function TenantPaymentDetailPage() {
   });
 
   const onSubmit = (data: Form) => {
-    if (!upload.uploaded) return;
+    if (needsScreenshot && !upload.uploaded) return;
     submit(data);
   };
 
@@ -236,7 +248,8 @@ export default function TenantPaymentDetailPage() {
           <h2 className="font-semibold text-foreground">Upload Payment Proof</h2>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-            {/* Screenshot Upload */}
+            {/* Screenshot Upload — only for digital payments */}
+            {needsScreenshot && (
             <div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
@@ -322,18 +335,31 @@ export default function TenantPaymentDetailPage() {
                 </div>
               )}
             </div>
+            )}
 
-            {/* UTR Number */}
+            {/* Cash/Cheque info hint */}
+            {isCashOrCheque && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400 text-sm">
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                No screenshot needed for {paymentMethod.toLowerCase()} payments
+              </div>
+            )}
+
+            {/* UTR / Reference Number */}
             <div>
               <label className="text-sm font-semibold text-foreground block mb-1.5">
-                UTR / Reference Number <span className="text-red-500">*</span>
+                {isCashOrCheque ? 'Receipt / Reference Number' : 'UTR / Reference Number'}
+                {!isCashOrCheque && <span className="text-red-500"> *</span>}
+                {isCashOrCheque && <span className="text-muted-foreground font-normal"> (optional)</span>}
               </label>
               <input
                 {...register('utrNumber')}
-                placeholder="e.g. 316025892341"
+                placeholder={isCashOrCheque ? 'e.g. receipt number or cheque no.' : 'e.g. 316025892341'}
                 className="w-full h-10 px-3 rounded-lg border border-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
-              <p className="text-xs text-muted-foreground mt-1">Find the UTR/Ref No. in your UPI app transaction history</p>
+              {!isCashOrCheque && (
+                <p className="text-xs text-muted-foreground mt-1">Find the UTR/Ref No. in your UPI app transaction history</p>
+              )}
               {errors.utrNumber && <p className="text-xs text-red-500 mt-1">{errors.utrNumber.message}</p>}
             </div>
 
@@ -399,24 +425,24 @@ export default function TenantPaymentDetailPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isPending || upload.uploading || !upload.uploaded}
+              disabled={isPending || (needsScreenshot && (upload.uploading || !upload.uploaded))}
               className={cn(
                 'w-full h-12 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
-                upload.uploaded && !isPending
+                (isCashOrCheque || upload.uploaded) && !isPending
                   ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200'
                   : 'bg-muted text-muted-foreground cursor-not-allowed'
               )}
             >
               {isPending
                 ? <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
-                : upload.uploading
+                : needsScreenshot && upload.uploading
                   ? <><Loader2 className="h-5 w-5 animate-spin" /> Uploading screenshot ({upload.progress}%)...</>
-                  : !upload.uploaded
+                  : needsScreenshot && !upload.uploaded
                     ? <><FileImage className="h-5 w-5" /> Upload screenshot to continue</>
                     : <><Upload className="h-5 w-5" /> Submit Payment Proof</>
               }
             </button>
-            {!upload.uploaded && !upload.uploading && (
+            {needsScreenshot && !upload.uploaded && !upload.uploading && (
               <p className="text-center text-xs text-muted-foreground">Upload your payment screenshot above to enable submission</p>
             )}
           </form>

@@ -44,6 +44,13 @@ const schema = z.object({
   paymentMethods: z.object({
     upiId: z.string().optional(),
     paymentPhone: z.string().optional(),
+    bankAccount: z.object({
+      bankName: z.string().optional(),
+      accountNumber: z.string().optional(),
+      ifsc: z.string().optional(),
+      accountHolder: z.string().optional(),
+    }).optional(),
+    instructions: z.string().optional(),
   }).optional(),
   images: z.array(z.string()).default([]),
 });
@@ -99,6 +106,13 @@ export default function EditPropertyPage() {
         paymentMethods: {
           upiId: property.paymentMethods?.upiId ?? '',
           paymentPhone: property.paymentMethods?.paymentPhone ?? '',
+          bankAccount: {
+            bankName: property.paymentMethods?.bankAccount?.bankName ?? '',
+            accountNumber: property.paymentMethods?.bankAccount?.accountNumber ?? '',
+            ifsc: property.paymentMethods?.bankAccount?.ifsc ?? '',
+            accountHolder: property.paymentMethods?.bankAccount?.accountHolder ?? '',
+          },
+          instructions: property.paymentMethods?.instructions ?? '',
         },
         images: property.images ?? [],
       });
@@ -278,15 +292,49 @@ export default function EditPropertyPage() {
 
         {/* Payment Methods */}
         <Card>
-          <CardHeader><CardTitle>Payment Methods</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>UPI ID</Label>
-              <Input placeholder="e.g. landlord@upi" {...register('paymentMethods.upiId')} />
+          <CardHeader>
+            <CardTitle>Payment Methods</CardTitle>
+            <p className="text-sm text-muted-foreground mt-0.5">These details are shown to tenants when they pay rent</p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>UPI ID</Label>
+                <Input placeholder="e.g. landlord@upi" {...register('paymentMethods.upiId')} />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Phone Number</Label>
+                <Input placeholder="e.g. 9876543210" {...register('paymentMethods.paymentPhone')} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Payment Phone Number</Label>
-              <Input placeholder="e.g. 9876543210" {...register('paymentMethods.paymentPhone')} />
+
+            <div className="border-t pt-4 space-y-4">
+              <p className="text-sm font-semibold text-foreground">Bank Account Details</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Bank Name</Label>
+                  <Input placeholder="e.g. State Bank of India" {...register('paymentMethods.bankAccount.bankName')} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Holder Name</Label>
+                  <Input placeholder="e.g. John Doe" {...register('paymentMethods.bankAccount.accountHolder')} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Account Number</Label>
+                  <Input placeholder="e.g. 1234567890" {...register('paymentMethods.bankAccount.accountNumber')} />
+                </div>
+                <div className="space-y-2">
+                  <Label>IFSC Code</Label>
+                  <Input placeholder="e.g. SBIN0001234" {...register('paymentMethods.bankAccount.ifsc')} />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t pt-4 space-y-2">
+              <Label>Payment Instructions (optional)</Label>
+              <Textarea placeholder="e.g. Please include your room number in the payment note..." {...register('paymentMethods.instructions')} />
             </div>
           </CardContent>
         </Card>

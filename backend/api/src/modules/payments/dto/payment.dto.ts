@@ -20,11 +20,11 @@ export class CreatePaymentDto {
 }
 
 export class SubmitPaymentDto {
-  @ApiProperty() @IsString() @IsNotEmpty() screenshotPath: string;
-  @ApiProperty()
+  @ApiProperty({ required: false }) @IsOptional() @IsString() screenshotPath?: string;
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  utrNumber: string;
+  utrNumber?: string;
   @ApiProperty({ enum: ['UPI', 'BANK_TRANSFER', 'CASH', 'CHEQUE', 'OTHER'] })
   @IsEnum(['UPI', 'BANK_TRANSFER', 'CASH', 'CHEQUE', 'OTHER'])
   paymentMethod: string;
