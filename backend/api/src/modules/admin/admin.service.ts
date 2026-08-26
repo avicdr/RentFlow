@@ -1,8 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { subMonths, startOfMonth, endOfMonth, format } from 'date-fns';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/schemas/notification.schema';
+import { DocModel } from '../documents/schemas/document.schema';
+import { Tenant } from '../tenants/schemas/tenant.schema';
 
 @Injectable()
 export class AdminService {
@@ -12,7 +16,10 @@ export class AdminService {
     @InjectModel('Payment') private paymentModel: Model<any>,
     @InjectModel('Complaint') private complaintModel: Model<any>,
     @InjectModel('Organization') private orgModel: Model<any>,
+    @InjectModel(DocModel.name) private docModel: Model<any>,
+    @InjectModel(Tenant.name) private tenantModel: Model<any>,
     private auditService: AuditService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getPlatformStats() {
@@ -175,5 +182,119 @@ export class AdminService {
 
     const total = totalArr;
     return { data: result, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+  }
+
+  async getPendingKyc(query: { search?: string }) {
+    const filter: any = {
+      isDeleted: false,
+      $or: [
+        { status: { $in: ['PENDING_VERIFICATION', 'KYC_UNDER_REVIEW', 'KYC_PENDING', 'KYC_REJECTED', 'INACTIVE'] } },
+        { 'verificationStatus.aadhaar': { $in: ['PENDING', 'REJECTED'] } },
+        { kycData: { $exists: true, $ne: null } },
+      ],
+    };
+
+    if (query.search) {
+      const safe = this.escapeRegex(String(query.search).slice(0, 100));
+      filter.$and = [
+        {
+          $or: [
+            { email: { $regex: safe, $options: 'i' } },
+            { firstName: { $regex: safe, $options: 'i' } },
+            { lastName: { $regex: safe, $options: 'i' } },
+            { phone: { $regex: safe, $options: 'i' } },
+          ],
+        },
+      ];
+    }
+
+    const users = await this.userModel
+      .find(filter)
+      .select('-passwordHash -refreshTokenHash')
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Populate KYC documents uploaded by each user
+    const usersWithDocs = await Promise.all(
+      users.map(async (u: any) => {
+        const kycDocs = await this.docModel
+          .find({ uploadedBy: u._id, isDeleted: false })
+          .sort({ createdAt: -1 })
+          .lean();
+
+        return {
+          ...u,
+          kycDocuments: kycDocs,
+        };
+      }),
+    );
+
+    return { data: usersWithDocs };
+  }
+
+  async approveKyc(userId: string, adminId: string) {
+    const uid = new Types.ObjectId(userId);
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: uid, isDeleted: false },
+      { $set: { status: 'ACTIVE' } },
+      { new: true },
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    // Also update Tenant verification status if applicable
+    await this.tenantModel.updateMany(
+      { userId: uid, isDeleted: false },
+      { $set: { 'verificationStatus.aadhaar': 'VERIFIED' } },
+    );
+
+    // Update documents status
+    await this.docModel.updateMany(
+      { uploadedBy: uid, isDeleted: false },
+      { $set: { status: 'APPROVED' } },
+    );
+
+    await this.auditService.log(adminId, 'KYC_APPROVED', 'User', userId, { status: user.status }, { status: 'ACTIVE' });
+
+    // Send notification to user
+    await this.notificationsService.create(
+      userId,
+      NotificationType.GENERAL,
+      'KYC Verified Successfully',
+      'Your KYC verification has been reviewed and approved by the RentFlow team.',
+    ).catch(() => {});
+
+    return { data: { success: true, message: 'KYC verified and approved' } };
+  }
+
+  async rejectKyc(userId: string, adminId: string, reason?: string) {
+    const uid = new Types.ObjectId(userId);
+    const user = await this.userModel.findOneAndUpdate(
+      { _id: uid, isDeleted: false },
+      { $set: { status: 'PENDING_VERIFICATION' } },
+      { new: true },
+    );
+    if (!user) throw new NotFoundException('User not found');
+
+    // Update Tenant verification status
+    await this.tenantModel.updateMany(
+      { userId: uid, isDeleted: false },
+      { $set: { 'verificationStatus.aadhaar': 'REJECTED' } },
+    );
+
+    await this.auditService.log(adminId, 'KYC_REJECTED', 'User', userId, {}, { reason: reason || 'Document rejected' }, 'WARNING');
+
+    // Send notification with rejection reason
+    const msg = reason?.trim()
+      ? `Your KYC submission was rejected: ${reason.trim()}. Please resubmit with clear documents.`
+      : 'Your KYC submission was rejected. Please re-upload clear government-issued IDs.';
+
+    await this.notificationsService.create(
+      userId,
+      NotificationType.GENERAL,
+      'KYC Verification Requires Action',
+      msg,
+    ).catch(() => {});
+
+    return { data: { success: true, message: 'KYC rejected' } };
   }
 }

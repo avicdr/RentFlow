@@ -57,4 +57,11 @@ export class NotificationsService {
       isDeleted: false,
     });
   }
+
+  async deleteByAnnouncementId(announcementId: string) {
+    return this.notifModel.updateMany(
+      { 'data.announcementId': announcementId },
+      { $set: { isDeleted: true } },
+    );
+  }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Query, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Query, Param, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -32,6 +32,25 @@ export class AdminController {
   @Patch('users/:id/activate')
   activateUser(@Param('id') id: string, @CurrentUser('id') adminId: string) {
     return this.svc.activateUser(id, adminId);
+  }
+
+  @Get('kyc/pending')
+  getPendingKyc(@Query() query: any) {
+    return this.svc.getPendingKyc(query);
+  }
+
+  @Post('kyc/:id/approve')
+  approveKyc(@Param('id') id: string, @CurrentUser('id') adminId: string) {
+    return this.svc.approveKyc(id, adminId);
+  }
+
+  @Post('kyc/:id/reject')
+  rejectKyc(
+    @Param('id') id: string,
+    @CurrentUser('id') adminId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.svc.rejectKyc(id, adminId, body?.reason);
   }
 
   @Get('properties')
