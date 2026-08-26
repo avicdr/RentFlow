@@ -20,7 +20,12 @@ const schema = z.object({
   lastName:  z.string().min(1, 'Last name is required'),
   email:     z.string().email('Enter a valid email address'),
   phone:     z.string().min(10, 'Enter a valid phone number').max(15),
-  password:  z.string().min(8, 'Password must be at least 8 characters'),
+  password:  z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
   confirmPassword: z.string(),
 }).refine(d => d.password === d.confirmPassword, {
   message: "Passwords don't match",
@@ -62,9 +67,11 @@ function RegisterPageInner() {
       setDone(true);
     },
     onError: (err: any) => {
+      const msg = err.response?.data?.message;
+      const description = Array.isArray(msg) ? msg[0] : (msg || 'Something went wrong. Please try again.');
       toast({
         title: 'Registration failed',
-        description: err.response?.data?.message ?? 'Something went wrong. Please try again.',
+        description,
         variant: 'destructive',
       });
     },

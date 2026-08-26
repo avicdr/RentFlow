@@ -316,35 +316,35 @@ function HowItWorks() {
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 const plans = [
   {
-    key: 'STARTER', name: 'Starter', monthlyPrice: '₹299', annualPrice: '₹2,990', limit: '1 Property', desc: 'Perfect for individual landlords',
+    key: 'STARTER', name: 'Starter', monthlyPrice: '₹499', annualPrice: '₹4,990', limit: '1 Property', desc: 'Perfect for individual landlords',
     icon: '🏠', highlight: false, color: '#64748b', isCustom: false,
     features: ['1 property', 'Unlimited tenants', 'Razorpay payments', 'Payment tracking', 'PDF receipts'],
     missing: ['Advanced analytics', 'Priority support', 'API access'],
     cta: 'Get Started',
   },
   {
-    key: 'GROWTH', name: 'Growth', monthlyPrice: '₹999', annualPrice: '₹9,990', limit: '2–5 Properties', desc: 'For growing portfolios',
+    key: 'GROWTH', name: 'Growth', monthlyPrice: '₹999', annualPrice: '₹9,990', limit: '2-4 Properties', desc: 'For growing portfolios',
     icon: '📈', highlight: true, color: '#6366f1', isCustom: false,
     features: ['Up to 5 properties', 'Unlimited tenants', 'Razorpay payments', 'Advanced analytics', 'PDF receipts', 'Priority support', 'Document vault'],
     missing: ['API access', 'Dedicated manager'],
     cta: 'Start free trial',
   },
   {
-    key: 'PROFESSIONAL', name: 'Professional', monthlyPrice: '₹2,499', annualPrice: '₹24,990', limit: '6–10 Properties', desc: 'For serious property managers',
+    key: 'PROFESSIONAL', name: 'Professional', monthlyPrice: '₹2,499', annualPrice: '₹24,990', limit: '5-8 Properties', desc: 'For serious property managers',
     icon: '🚀', highlight: false, color: '#8b5cf6', isCustom: false,
     features: ['Up to 10 properties', 'Unlimited tenants', 'All analytics', 'API access', 'Priority support', 'Document vault'],
     missing: ['Dedicated manager'],
     cta: 'Get Professional',
   },
   {
-    key: 'BUSINESS', name: 'Business', monthlyPrice: '₹4,999', annualPrice: '₹49,990', limit: '11–25 Properties', desc: 'For large-scale operations',
+    key: 'BUSINESS', name: 'Business', monthlyPrice: '₹4,999', annualPrice: '₹49,990', limit: '9-15 Properties', desc: 'For large-scale operations',
     icon: '🏢', highlight: false, color: '#f59e0b', isCustom: false,
     features: ['Up to 25 properties', 'Unlimited tenants', 'Full analytics suite', 'API access', '24/7 support', 'Dedicated manager'],
     missing: [],
     cta: 'Get Business',
   },
   {
-    key: 'ENTERPRISE', name: 'Enterprise', monthlyPrice: 'Custom', annualPrice: 'Custom', limit: '25+ Properties', desc: 'Tailored for large enterprises',
+    key: 'ENTERPRISE', name: 'Enterprise', monthlyPrice: 'Custom', annualPrice: 'Custom', limit: '15+ Properties', desc: 'Tailored for large enterprises',
     icon: '👑', highlight: false, color: '#e879f9', isCustom: true,
     features: ['Unlimited properties', 'Unlimited tenants', 'Custom analytics', 'Full API access', 'Dedicated account manager', 'SLA guarantee', 'Custom integrations'],
     missing: [],

@@ -49,32 +49,32 @@ export default function TenantDashboard() {
 
       {/* Rent Due Alert */}
       {latestPending && (
-        <Link href={`/payments/${latestPending._id}`}>
-          <div className={`rounded-xl p-4 border ${
-            latestPending.status === 'PENDING' ? 'border-yellow-200 bg-yellow-50 dark:border-yellow-900/50 dark:bg-yellow-900/20' :
-            latestPending.status === 'PAYMENT_SUBMITTED' ? 'border-blue-200 bg-blue-50 dark:border-blue-900/50 dark:bg-blue-900/20' :
-            'border-orange-200 bg-orange-50 dark:border-orange-900/50 dark:bg-orange-900/20'
+        <Link href={`/payments/${latestPending._id}`} className="block mt-2">
+          <div className={`rounded-2xl p-4 border bg-card ${
+            latestPending.status === 'PENDING' ? 'border-l-4 border-l-yellow-500 border-yellow-200 dark:border-yellow-800/60 dark:border-l-yellow-500' :
+            latestPending.status === 'PAYMENT_SUBMITTED' ? 'border-l-4 border-l-blue-500 border-blue-200 dark:border-blue-800/60 dark:border-l-blue-500' :
+            'border-l-4 border-l-orange-500 border-orange-200 dark:border-orange-800/60 dark:border-l-orange-500'
           }`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold">
+                <p className="font-semibold text-foreground">
                   {MONTHS[(latestPending.month ?? 1) - 1]} {latestPending.year} Rent
                 </p>
-                <p className="text-2xl font-bold mt-1">{formatCurrency(latestPending.amount)}</p>
+                <p className="text-2xl font-bold mt-1 text-foreground">{formatCurrency(latestPending.amount)}</p>
                 <p className={`text-sm mt-1 font-medium ${
-                  latestPending.status === 'PENDING' ? 'text-yellow-700 dark:text-yellow-400' : 'text-blue-700 dark:text-blue-400'
+                  latestPending.status === 'PENDING' ? 'text-yellow-600 dark:text-yellow-400' : 'text-blue-600 dark:text-blue-400'
                 }`}>
                   {STATUS_CONFIG[latestPending.status]?.label ?? latestPending.status}
                 </p>
               </div>
               {latestPending.status === 'PENDING' && (
-                <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold text-sm">
+                <div className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-sm shadow-yellow-500/30">
                   Pay Now
                 </div>
               )}
             </div>
             {latestPending.status === 'PENDING' && (
-              <p className="text-xs text-yellow-600 dark:text-yellow-500 mt-2">Due: {formatDate(latestPending.dueDate)}</p>
+              <p className="text-xs text-muted-foreground mt-2">Due: {formatDate(latestPending.dueDate)}</p>
             )}
           </div>
         </Link>
