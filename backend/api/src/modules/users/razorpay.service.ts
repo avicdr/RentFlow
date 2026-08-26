@@ -5,8 +5,8 @@ import * as crypto from 'crypto';
 const TIER_AMOUNTS_PAISE: Record<string, number> = {
   SOLO: 49900,   // ₹499
   GROWTH: 99900,   // ₹999
-  SCALE: 149900,   // ₹1,499
-  ENTERPRISE: 299900,  // ₹2,999
+  PROFESSIONAL: 249900,   // ₹1,499
+  BUSINESS: 499900,  // ₹4,999
 };
 
 const TIER_NAMES: Record<string, string> = {

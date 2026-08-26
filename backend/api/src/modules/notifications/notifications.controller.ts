@@ -27,13 +27,18 @@ export class NotificationsController {
     return this.svc.getUnreadCount(userId).then(count => ({ data: { count } }));
   }
 
-  @Patch(':id/read')
-  markRead(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.svc.markRead(id, userId);
+  @Patch('read-all')
+  readAll(@CurrentUser('id') userId: string) {
+    return this.svc.markAllRead(userId);
   }
 
   @Patch('mark-all-read')
   markAllRead(@CurrentUser('id') userId: string) {
     return this.svc.markAllRead(userId);
+  }
+
+  @Patch(':id/read')
+  markRead(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.svc.markRead(id, userId);
   }
 }

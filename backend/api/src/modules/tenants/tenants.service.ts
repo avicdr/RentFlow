@@ -83,16 +83,20 @@ export class TenantsService {
   async findAll(landlordId: string, query: any) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
-    const filter: any = { landlordId: new Types.ObjectId(landlordId), isDeleted: false };
+    const filter: any = { isDeleted: false };
+    if (query.role !== 'SUPER_ADMIN') {
+      filter.landlordId = new Types.ObjectId(landlordId);
+    }
     if (query.status) filter.status = query.status;
     if (query.propertyId) filter.propertyId = new Types.ObjectId(query.propertyId);
 
     const [tenants, total] = await Promise.all([
       this.tenantModel
         .find(filter)
-        .populate('userId', 'firstName lastName email phone status')
+        .populate('userId', 'firstName lastName email phone status profile')
         .populate('propertyId', 'name address type')
         .populate('roomId', 'roomNumber type monthlyRent')
+        .populate('landlordId', 'firstName lastName email phone')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -103,20 +107,54 @@ export class TenantsService {
   }
 
   async findOne(id: string, landlordId: string, role?: string) {
-    const filter: any = { _id: new Types.ObjectId(id), isDeleted: false };
-    // Scope to the landlord's own tenants unless admin
-    if (role !== 'SUPER_ADMIN') {
-      filter.landlordId = new Types.ObjectId(landlordId);
-    }
-    const tenant = await this.tenantModel
-      .findOne(filter)
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant not found');
+    const oid = new Types.ObjectId(id);
+
+    // 1. Try finding by Tenant _id
+    let tenant = await this.tenantModel
+      .findOne({ _id: oid, isDeleted: false })
       .populate('userId', 'firstName lastName email phone profile status isEmailVerified isPhoneVerified')
       .populate('propertyId', 'name address type paymentMethods')
       .populate('roomId', 'roomNumber type monthlyRent')
-      .populate('bedId', 'bedNumber');
+      .populate('bedId', 'bedNumber')
+      .populate('landlordId', 'firstName lastName email phone');
+
+    // 2. If not found by _id, try finding by userId (e.g. from users list)
+    if (!tenant) {
+      tenant = await this.tenantModel
+        .findOne({ userId: oid, isDeleted: false })
+        .populate('userId', 'firstName lastName email phone profile status isEmailVerified isPhoneVerified')
+        .populate('propertyId', 'name address type paymentMethods')
+        .populate('roomId', 'roomNumber type monthlyRent')
+        .populate('bedId', 'bedNumber')
+        .populate('landlordId', 'firstName lastName email phone');
+    }
 
     if (!tenant) throw new NotFoundException('Tenant not found');
     return { data: tenant };
+  }
+
+  async getStayHistory(id: string, landlordId: string, role?: string) {
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant record not found');
+    const oid = new Types.ObjectId(id);
+
+    // Resolve userId
+    let userId = oid;
+    const tenantRec = await this.tenantModel.findById(oid);
+    if (tenantRec) {
+      userId = tenantRec.userId;
+    }
+
+    const filter: any = { userId, isDeleted: false };
+    const stays = await this.tenantModel
+      .find(filter)
+      .populate('propertyId', 'name address type city state')
+      .populate('roomId', 'roomNumber type monthlyRent')
+      .populate('landlordId', 'firstName lastName email phone')
+      .sort({ joiningDate: -1 })
+      .lean();
+
+    return { data: stays };
   }
 
   async findByUser(userId: string) {

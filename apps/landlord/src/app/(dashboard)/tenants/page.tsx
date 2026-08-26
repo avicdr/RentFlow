@@ -32,8 +32,8 @@ export default function TenantsPage() {
   const properties: any[] = propertiesData ?? [];
   const tenants: any[] = (data ?? []).filter((t: any) => {
     if (!search) return true;
-    const name = `${t.userId?.firstName ?? ''} ${t.userId?.lastName ?? ''} ${t.userId?.email ?? ''}`;
-    return name.toLowerCase().includes(search.toLowerCase());
+    const target = `${t.userId?.firstName ?? ''} ${t.userId?.lastName ?? ''} ${t.userId?.email ?? ''} ${t.userId?.phone ?? ''} ${t.roomId?.roomNumber ?? ''} ${t.roomId?.type ?? ''} ${t.propertyId?.name ?? ''}`;
+    return target.toLowerCase().includes(search.toLowerCase());
   });
 
   return (
@@ -56,11 +56,11 @@ export default function TenantsPage() {
 
       {/* Filters */}
       <div className="bg-card rounded-xl border p-4 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search tenants..."
+            placeholder="Search by name, room no, or property..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 h-10 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-muted"

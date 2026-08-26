@@ -28,6 +28,11 @@ import { HealthModule } from './modules/health/health.module';
 import { SchedulerModule } from './modules/scheduler/scheduler.module';
 import { SearchModule } from './modules/search/search.module';
 import { LeasesModule } from './modules/leases/leases.module';
+import { ReliabilityModule } from './modules/reliability/reliability.module';
+import { FinancesModule } from './modules/finances/finances.module';
+import { RentPassModule } from './modules/rentpass/rentpass.module';
+import { UtilitiesModule } from './modules/utilities/utilities.module';
+import { MessagesModule } from './modules/messages/messages.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
 @Module({
@@ -65,6 +70,11 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     SchedulerModule,
     SearchModule,
     LeasesModule,
+    ReliabilityModule,
+    FinancesModule,
+    RentPassModule,
+    UtilitiesModule,
+    MessagesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

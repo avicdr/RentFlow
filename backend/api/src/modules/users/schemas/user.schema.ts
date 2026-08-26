@@ -69,6 +69,25 @@ export class User {
     verificationStatus: 'PENDING' | 'VERIFIED' | 'REJECTED';
     verifiedAt?: Date;
   } | null;
+  @Prop({ type: String, enum: ['NOT_VERIFIED', 'PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED'], default: 'NOT_VERIFIED' })
+  verificationStatus: string;
+  @Prop({ default: false })
+  isLandlordVerified: boolean;
+  @Prop({
+    type: {
+      status: { type: String, enum: ['NOT_VERIFIED', 'PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED'], default: 'NOT_VERIFIED' },
+      verifiedAt: Date,
+      notes: String,
+      documents: [String],
+    },
+    default: null,
+  })
+  landlordVerification?: {
+    status: string;
+    verifiedAt?: Date;
+    notes?: string;
+    documents?: string[];
+  } | null;
   @Prop() lastLoginAt?: Date;
   @Prop({ default: false }) isDeleted: boolean;
   @Prop() deletedAt?: Date;

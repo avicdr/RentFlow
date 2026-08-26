@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Tenant, TenantSchema } from './schemas/tenant.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { Bed, BedSchema } from '../beds/schemas/bed.schema';
 import { TenantsService } from './tenants.service';
 import { TenantsController } from './tenants.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -13,6 +14,7 @@ import { RoomsModule } from '../rooms/rooms.module';
     MongooseModule.forFeature([
       { name: Tenant.name, schema: TenantSchema },
       { name: User.name, schema: UserSchema },
+      { name: Bed.name, schema: BedSchema },
     ]),
     NotificationsModule,
     AuditModule,

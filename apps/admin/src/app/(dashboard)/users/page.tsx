@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, UserCheck, UserX,
@@ -165,15 +166,17 @@ export default function AdminUsersPage() {
                     />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center text-xs font-bold text-foreground flex-shrink-0">
+                    <Link href={`/users/${u._id}`} className="flex items-center gap-3 group">
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0 group-hover:scale-105 transition-transform">
                         {u.firstName?.[0]}{u.lastName?.[0]}
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-foreground truncate">{u.firstName} {u.lastName}</p>
+                        <p className="font-semibold text-foreground group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                          {u.firstName} {u.lastName}
+                        </p>
                         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${ROLE_BADGE[u.role] ?? 'bg-muted text-muted-foreground border-border'}`}>
@@ -203,6 +206,13 @@ export default function AdminUsersPage() {
                   <td className="px-4 py-3 text-xs text-muted-foreground">{u.lastLoginAt ? timeAgo(u.lastLoginAt) : '—'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
+                      <Link
+                        href={`/users/${u._id}`}
+                        title="View Profile & Stays"
+                        className="p-1.5 rounded hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Link>
                       {u.status === 'ACTIVE' ? (
                         <button
                           onClick={() => { if (confirm(`Suspend ${u.firstName}?`)) suspendUser(u._id); }}

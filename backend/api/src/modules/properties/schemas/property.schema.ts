@@ -34,6 +34,27 @@ export class Property {
     paymentPhone?: string;
     instructions?: string;
   } | null;
+  @Prop({ type: String, enum: ['NOT_VERIFIED', 'PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED'], default: 'NOT_VERIFIED' })
+  verificationStatus: string;
+  @Prop({ default: false })
+  isVerified: boolean;
+  @Prop({
+    type: {
+      status: { type: String, enum: ['NOT_VERIFIED', 'PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED'], default: 'NOT_VERIFIED' },
+      verifiedAt: Date,
+      verifiedBy: { type: Types.ObjectId, ref: 'User' },
+      notes: String,
+      documents: [String],
+    },
+    default: null,
+  })
+  verificationDetails?: {
+    status: string;
+    verifiedAt?: Date;
+    verifiedBy?: Types.ObjectId;
+    notes?: string;
+    documents?: string[];
+  } | null;
   @Prop({ default: false }) isDeleted: boolean;
   @Prop() deletedAt?: Date;
 }

@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, CreditCard, MessageSquare,
   BarChart3, ListChecks, Settings, LogOut, Bell, Menu, X,
-  ChevronRight, Home, Crown, Sun, Moon,
+  ChevronRight, Home, Crown, Sun, Moon, DollarSign, MessageCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -18,7 +18,9 @@ const navigation = [
   { name: 'Dashboard',    href: '/',                    icon: LayoutDashboard },
   { name: 'Properties',  href: '/properties',           icon: Building2 },
   { name: 'Tenants',     href: '/tenants',              icon: Users },
+  { name: 'Finances',    href: '/finances',             icon: DollarSign },
   { name: 'Payments',    href: '/payments',             icon: CreditCard },
+  { name: 'Messages',    href: '/messages',             icon: MessageCircle },
   { name: 'Complaints',  href: '/complaints',           icon: MessageSquare },
   { name: 'Analytics',   href: '/analytics',            icon: BarChart3 },
   { name: 'Listings',    href: '/listings',             icon: ListChecks },
@@ -52,13 +54,17 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
     router.push('/login');
   };
 
+  const { data: unreadMsgCount } = useQuery({
+    queryKey: ['messages', 'unread-count'],
+    queryFn: () => apiClient.get('/api/v1/messages/unread-count').then(r => r.data.data.count).catch(() => 0),
+    refetchInterval: 10000,
+  });
+
   return (
     <>
-      {open && (
-        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
-      )}
+      {open && <div className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={onClose} />}
       <aside className={cn(
-        'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r transition-transform duration-300',
+        'fixed inset-y-0 left-0 z-50 w-64 flex flex-col border-r transition-transform duration-300',
         'bg-card border-border',
         'lg:translate-x-0 lg:static lg:z-auto',
         open ? 'translate-x-0' : '-translate-x-full',
@@ -105,7 +111,15 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
                 {item.name}
-                {active && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
+                {item.href === '/messages' && (unreadMsgCount ?? 0) > 0 && (
+                  <span className={cn(
+                    'ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full',
+                    active ? 'bg-white text-indigo-700' : 'bg-indigo-600 text-white shadow-sm',
+                  )}>
+                    {unreadMsgCount}
+                  </span>
+                )}
+                {active && item.href !== '/messages' && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
               </Link>
             );
           })}

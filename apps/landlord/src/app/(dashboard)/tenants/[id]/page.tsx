@@ -8,12 +8,14 @@ import {
   ArrowLeft, User, Home, CreditCard, FileText, Phone, Mail,
   Calendar, IndianRupee, Upload, Download, X, CheckCircle,
   AlertCircle, Clock, Building2, Loader2, FileImage, Shield,
+  History,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { formatDate } from '@/lib/utils';
 
 const TABS = [
   { key: 'overview', label: 'Overview', icon: User },
+  { key: 'stays', label: 'Stay History', icon: History },
   { key: 'payments', label: 'Payments', icon: CreditCard },
   { key: 'documents', label: 'Documents', icon: FileText },
 ];
@@ -92,6 +94,20 @@ export default function TenantDetailPage() {
       setUploadDesc('');
     },
   });
+
+  const { data: scoreRes } = useQuery({
+    queryKey: ['tenant-reliability', id],
+    queryFn: () => apiClient.get(`/api/v1/reliability/tenant/${id}`).then(r => r.data.data),
+    enabled: !!id,
+  });
+
+  const { data: staysData } = useQuery({
+    queryKey: ['tenant-stays', id],
+    queryFn: () => apiClient.get(`/api/v1/tenants/${id}/stay-history`).then(r => r.data.data),
+    enabled: !!id,
+  });
+
+  const reliability = scoreRes;
 
   const handleUpload = () => {
     if (!uploadFile) return;
@@ -215,6 +231,131 @@ export default function TenantDetailPage() {
                   />
                 </div>
               </div>
+
+              {/* Reliability Score Card */}
+              {reliability && (
+                <div className="sm:col-span-2 pt-6 border-t border-border">
+                  <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-purple-50/70 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-900/60">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-indigo-100 dark:border-indigo-900/50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Shield className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                          <h3 className="font-bold text-base text-foreground">RentFlow Reliability Score</h3>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Comprehensive rental trust rating based on payment consistency and verification
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <span className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400">
+                            {reliability.currentScore ?? 85}
+                          </span>
+                          <span className="text-sm font-semibold text-muted-foreground"> / 100</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Breakdown Factors */}
+                    <div className="grid gap-3 sm:grid-cols-5 pt-4">
+                      {[
+                        { label: 'Payment History', value: reliability.breakdown?.paymentHistory ?? 90 },
+                        { label: 'KYC Verification', value: reliability.breakdown?.kycVerification ?? 80 },
+                        { label: 'Tenancy Stability', value: reliability.breakdown?.tenancyStability ?? 85 },
+                        { label: 'Outstanding Dues', value: reliability.breakdown?.outstandingDues ?? 95 },
+                        { label: 'Agreement Status', value: reliability.breakdown?.agreementStatus ?? 90 },
+                      ].map(factor => (
+                        <div key={factor.label} className="p-3 rounded-xl bg-card border text-center">
+                          <p className="text-[11px] text-muted-foreground truncate">{factor.label}</p>
+                          <p className="text-lg font-bold text-foreground mt-0.5">{factor.value}%</p>
+                          <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden mt-1.5">
+                            <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${factor.value}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Positive drivers */}
+                    {reliability.positiveFactors?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {reliability.positiveFactors.map((f: string, idx: number) => (
+                          <span key={idx} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-100/70 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                            <CheckCircle className="h-3 w-3" /> {f}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STAY HISTORY TAB */}
+          {activeTab === 'stays' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-foreground">Complete Rental & Stay History</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Verified record of past and current stays across RentFlow properties</p>
+                </div>
+                <span className="text-xs font-semibold px-3 py-1 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-200 dark:border-indigo-800">
+                  {staysData?.length ?? 1} Recorded Stay{(staysData?.length ?? 1) !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {!staysData || staysData.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground border rounded-2xl bg-card">
+                  <History className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">No previous stay history records found</p>
+                </div>
+              ) : (
+                <div className="bg-card rounded-2xl border overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
+                          <th className="px-5 py-3">Property</th>
+                          <th className="px-5 py-3">Room / Unit</th>
+                          <th className="px-5 py-3">Landlord</th>
+                          <th className="px-5 py-3">Period</th>
+                          <th className="px-5 py-3 text-right">Rent</th>
+                          <th className="px-5 py-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {staysData.map((s: any) => (
+                          <tr key={s._id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-5 py-3.5 font-medium text-foreground">
+                              {s.propertyId?.name ?? '—'}
+                              {s.propertyId?.city && <span className="text-xs text-muted-foreground block">{s.propertyId.city}</span>}
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-foreground font-mono">
+                              Room {s.roomId?.roomNumber || '—'}
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-muted-foreground">
+                              {s.landlordId ? `${s.landlordId.firstName} ${s.landlordId.lastName}` : '—'}
+                            </td>
+                            <td className="px-5 py-3.5 text-xs text-muted-foreground whitespace-nowrap">
+                              {s.joiningDate ? formatDate(s.joiningDate) : '—'} → {s.vacatingDate ? formatDate(s.vacatingDate) : 'Present'}
+                            </td>
+                            <td className="px-5 py-3.5 text-right font-bold text-foreground">
+                              ₹{(s.agreedRent ?? 0).toLocaleString('en-IN')}/mo
+                            </td>
+                            <td className="px-5 py-3.5 text-center">
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                s.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

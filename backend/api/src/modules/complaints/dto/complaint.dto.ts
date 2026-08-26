@@ -3,8 +3,8 @@ import {
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
-const CATEGORIES = ['MAINTENANCE', 'PLUMBING', 'ELECTRICAL', 'PEST_CONTROL', 'CLEANING', 'SECURITY', 'NOISE', 'OTHER'] as const;
-const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
+const CATEGORIES = ['MAINTENANCE', 'NOISE', 'BILLING', 'SAFETY', 'HARASSMENT', 'OTHER', 'PLUMBING', 'ELECTRICAL', 'CLEANING', 'SECURITY', 'PEST', 'WIFI'] as const;
+const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
 export class CreateComplaintDto {
   @ApiProperty() @IsString() @IsNotEmpty() title: string;

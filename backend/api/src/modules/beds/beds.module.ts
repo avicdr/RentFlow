@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { Injectable } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Bed, BedSchema } from './schemas/bed.schema';
 
 @Injectable()
 class BedsService {}
@@ -18,8 +19,11 @@ class BedsController {
 }
 
 @Module({
+  imports: [
+    MongooseModule.forFeature([{ name: Bed.name, schema: BedSchema }]),
+  ],
   controllers: [BedsController],
   providers: [BedsService],
-  exports: [BedsService],
+  exports: [BedsService, MongooseModule],
 })
 export class BedsModule {}

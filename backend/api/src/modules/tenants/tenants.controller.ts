@@ -28,12 +28,13 @@ export class TenantsController {
   @Roles('LANDLORD', 'PROPERTY_MANAGER', 'SUPER_ADMIN')
   findAll(
     @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @Query('status') status?: string,
     @Query('propertyId') propertyId?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return this.svc.findAll(userId, { status, propertyId, page: +page, limit: +limit });
+    return this.svc.findAll(userId, { status, propertyId, page: +page, limit: +limit, role });
   }
 
   @Get('my-profile')
@@ -41,6 +42,17 @@ export class TenantsController {
   @Roles('TENANT')
   getMyProfile(@CurrentUser('id') userId: string) {
     return this.svc.findByUser(userId);
+  }
+
+  @Get(':id/stay-history')
+  @UseGuards(RolesGuard)
+  @Roles('LANDLORD', 'PROPERTY_MANAGER', 'SUPER_ADMIN')
+  getStayHistory(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
+  ) {
+    return this.svc.getStayHistory(id, userId, role);
   }
 
   @Get(':id')
