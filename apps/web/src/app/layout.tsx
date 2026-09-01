@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { ThemeProvider } from '@/components/theme-provider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -10,15 +11,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'RentFlow — Razorpay-Powered Rental Management for India',
+  title: 'RentFlow — The Control Center Your Properties Never Had',
   description:
-    'Collect rent via Razorpay, manage properties and tenants, analyze leases with AI, and track payments — all in one platform built for Indian landlords and PG owners.',
+    'Replace the spreadsheets, notebooks, whatsapp and chaos with one place that actually keeps up. Collect rent via Razorpay, manage properties and tenants, and track payments.',
   keywords: [
     'rental management India', 'property management software', 'rent collection app',
     'PG management', 'Razorpay rent', 'landlord software India', 'tenant management',
   ],
   openGraph: {
-    title: 'RentFlow — India\'s Smartest Property Management Platform',
+    title: 'RentFlow — The Control Center Your Properties Never Had',
     description:
       'Razorpay-powered rent collection, AI lease analysis, and full tenant management. Built for Indian landlords.',
     type: 'website',
@@ -35,9 +36,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} dark`} style={{ colorScheme: 'dark' }}>
-      <body className="font-sans antialiased" style={{ background: '#080810', color: '#e2e8f0' }}>
-        {children}
+    <html lang="en" className={`${inter.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased bg-slate-50 dark:bg-[#080810] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

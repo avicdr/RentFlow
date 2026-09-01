@@ -3,15 +3,38 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --bg-primary: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f1f5f9;
+    --border-color: rgba(0, 0, 0, 0.08);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+  }
+
+  .dark {
+    --bg-primary: #080810;
+    --bg-surface: rgba(255, 255, 255, 0.025);
+    --bg-elevated: #0f0f1c;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+  }
+
   html {
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
   body {
-    background-color: #080810;
-    color: #e2e8f0;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.25s ease, color 0.25s ease;
   }
+
   *,
   *::before,
   *::after {
@@ -21,32 +44,41 @@
 
 @layer utilities {
   .gradient-text {
-    background-image: linear-gradient(135deg, #818cf8 0%, #c084fc 50%, #fb7185 100%);
+    background-image: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #f43f5e 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
+  .glass-header {
+    backdrop-filter: blur(20px) saturate(1.5);
+  }
+
   .glass-dark {
     backdrop-filter: blur(20px) saturate(1.5);
     background: rgba(8, 8, 16, 0.85);
     border: 1px solid rgba(255, 255, 255, 0.07);
   }
-  .glow-indigo {
-    box-shadow: 0 0 80px rgba(99, 102, 241, 0.15), 0 0 160px rgba(99, 102, 241, 0.07);
+
+  .glass-light {
+    backdrop-filter: blur(20px) saturate(1.5);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.08);
   }
-  .card-dark {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: background 0.2s ease, border-color 0.2s ease;
+
+  .card-theme {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   }
-  .card-dark:hover {
-    background: rgba(99, 102, 241, 0.06);
-    border-color: rgba(99, 102, 241, 0.35);
+
+  .card-theme:hover {
+    border-color: rgba(99, 102, 241, 0.4);
   }
 }
 
 /* Noise texture overlay */
-body::before {
+.dark body::before {
   content: '';
   position: fixed;
   inset: 0;
@@ -56,7 +88,6 @@ body::before {
   opacity: 0.4;
 }
 
-/* Smooth section transitions */
 section {
   position: relative;
 }

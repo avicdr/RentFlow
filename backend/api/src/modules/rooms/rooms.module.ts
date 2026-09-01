@@ -6,58 +6,125 @@ import { MongooseModule, InjectModel, InjectConnection } from '@nestjs/mongoose'
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types, Model, Connection } from 'mongoose';
 import {
-  IsString, IsNumber, IsOptional, IsArray, IsEnum, Min, Max, IsInt,
+  IsString, IsNumber, IsOptional, IsArray, IsEnum, Min, Max, IsInt, IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RoomAvailabilityEvent, RoomAvailabilityEventSchema } from './schemas/room-availability-event.schema';
+import { SubscriptionsService } from '../users/subscriptions.service';
+import { UsersModule } from '../users/users.module';
+import { forwardRef } from '@nestjs/common';
 
 // ─── Schema ──────────────────────────────────────────────────────────────────
 
+export const ROOM_TYPES = ['SINGLE', 'DOUBLE', 'TRIPLE', 'QUAD', 'DORM', 'DORMITORY', 'PRIVATE', 'STUDIO'] as const;
+export const ROOM_STATUSES = [
+  'AVAILABLE',
+  'OCCUPIED',
+  'PARTIALLY_OCCUPIED',
+  'FULLY_OCCUPIED',
+  'NOTICE_PERIOD',
+  'MAINTENANCE',
+  'UNAVAILABLE',
+  'RESERVED',
+] as const;
+
 @Schema({ timestamps: true, collection: 'rooms' })
-class Room {
+export class Room {
   @Prop({ required: true, type: Types.ObjectId, ref: 'Property', index: true }) propertyId: Types.ObjectId;
   @Prop({ type: Types.ObjectId, ref: 'Organization' }) organizationId: Types.ObjectId;
   @Prop({ required: true }) roomNumber: string;
-  @Prop({ type: String, enum: ['SINGLE', 'DOUBLE', 'TRIPLE', 'QUAD', 'DORM', 'DORMITORY', 'PRIVATE', 'STUDIO'], default: 'SINGLE' }) type: string;
+  @Prop({ type: String, enum: ROOM_TYPES, default: 'SINGLE' }) type: string;
   @Prop({ default: 1 }) capacity: number;
   @Prop({ default: 0 }) occupiedCount: number;
   @Prop({ default: 0 }) monthlyRent: number;
   @Prop({ default: 0 }) rentPerBed: number;
+  @Prop({ default: 0 }) deposit: number;
   @Prop({ type: Number, default: 0 }) floor: number;
-  @Prop() description: string;
-  @Prop({ type: String, enum: ['AVAILABLE', 'PARTIALLY_OCCUPIED', 'FULLY_OCCUPIED', 'MAINTENANCE'], default: 'AVAILABLE' }) status: string;
+  @Prop({ default: '' }) description: string;
+  @Prop({ type: String, enum: ['FURNISHED', 'SEMI_FURNISHED', 'UNFURNISHED'], default: 'SEMI_FURNISHED' }) furnishing: string;
+  @Prop({ type: String, enum: ROOM_STATUSES, default: 'AVAILABLE', index: true }) status: string;
   @Prop({ type: [String], default: [] }) amenities: string[];
+  @Prop({ type: [String], default: [] }) images: string[];
+
+  // Future availability for NOTICE_PERIOD or general scheduling
+  @Prop({ type: Date }) availableFrom?: Date;
+
+  // Notice Period tracking
+  @Prop({
+    type: {
+      submittedAt: Date,
+      moveOutDate: Date,
+      actualMoveOutDate: Date,
+      reason: String,
+      recordedBy: { type: Types.ObjectId, ref: 'User' },
+      status: { type: String, enum: ['PENDING', 'CONFIRMED', 'CANCELLED'], default: 'CONFIRMED' },
+    },
+    default: null,
+  })
+  noticeDetails?: {
+    submittedAt?: Date;
+    moveOutDate?: Date;
+    actualMoveOutDate?: Date;
+    reason?: string;
+    recordedBy?: Types.ObjectId;
+    status?: string;
+  } | null;
+
+  // Maintenance tracking
+  @Prop({
+    type: {
+      reason: String,
+      description: String,
+      startDate: Date,
+      expectedEndDate: Date,
+      actualEndDate: Date,
+      notes: String,
+    },
+    default: null,
+  })
+  maintenanceDetails?: {
+    reason?: string;
+    description?: string;
+    startDate?: Date;
+    expectedEndDate?: Date;
+    actualEndDate?: Date;
+    notes?: string;
+  } | null;
+
   @Prop({ default: false }) isDeleted: boolean;
 }
-const RoomSchema = SchemaFactory.createForClass(Room);
+export const RoomSchema = SchemaFactory.createForClass(Room);
 RoomSchema.index({ propertyId: 1, status: 1 });
+RoomSchema.index({ propertyId: 1, floor: 1 });
 
-// Minimal Property model reference so we can update counters and verify ownership
+// Minimal Property model reference for counters & ownership
 @Schema({ collection: 'properties' })
 class PropertyRef {
   @Prop() totalRooms: number;
   @Prop() totalBeds: number;
   @Prop({ type: Types.ObjectId }) landlordId: Types.ObjectId;
   @Prop({ type: Types.ObjectId }) organizationId: Types.ObjectId;
+  @Prop() name: string;
 }
 const PropertyRefSchema = SchemaFactory.createForClass(PropertyRef);
 
 // Minimal Tenant reference for occupancy counting
 @Schema({ collection: 'tenants' })
 class TenantRef {
+  @Prop({ type: Types.ObjectId, ref: 'User' }) userId: Types.ObjectId;
   @Prop({ type: Types.ObjectId }) roomId: Types.ObjectId;
   @Prop() status: string;
+  @Prop() joiningDate: Date;
+  @Prop() vacatingDate?: Date;
   @Prop({ default: false }) isDeleted: boolean;
 }
 const TenantRefSchema = SchemaFactory.createForClass(TenantRef);
 
-// ─── DTO ─────────────────────────────────────────────────────────────────────
-
-const ROOM_TYPES = ['SINGLE', 'DOUBLE', 'TRIPLE', 'QUAD', 'DORM', 'DORMITORY', 'PRIVATE', 'STUDIO'] as const;
-const ROOM_STATUSES = ['AVAILABLE', 'PARTIALLY_OCCUPIED', 'FULLY_OCCUPIED', 'MAINTENANCE'] as const;
+// ─── DTOs ────────────────────────────────────────────────────────────────────
 
 export class CreateRoomDto {
   @IsString() propertyId: string;
@@ -66,10 +133,12 @@ export class CreateRoomDto {
   @IsOptional() @IsInt() @Min(1) @Max(50) @Type(() => Number) capacity?: number;
   @IsOptional() @IsNumber() @Min(0) @Type(() => Number) rentPerBed?: number;
   @IsOptional() @IsNumber() @Min(0) @Type(() => Number) monthlyRent?: number;
+  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) deposit?: number;
   @IsOptional() @IsInt() @Min(0) @Type(() => Number) floor?: number;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() furnishing?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) amenities?: string[];
-  // count is a bulk-create convenience field — not a room property
+  @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
   @IsOptional() @IsInt() @Min(1) @Max(200) @Type(() => Number) count?: number;
 }
 
@@ -79,10 +148,38 @@ export class UpdateRoomDto {
   @IsOptional() @IsInt() @Min(1) @Max(50) @Type(() => Number) capacity?: number;
   @IsOptional() @IsNumber() @Min(0) @Type(() => Number) rentPerBed?: number;
   @IsOptional() @IsNumber() @Min(0) @Type(() => Number) monthlyRent?: number;
+  @IsOptional() @IsNumber() @Min(0) @Type(() => Number) deposit?: number;
   @IsOptional() @IsInt() @Min(0) @Type(() => Number) floor?: number;
   @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsString() furnishing?: string;
   @IsOptional() @IsEnum(ROOM_STATUSES) status?: string;
   @IsOptional() @IsArray() @IsString({ each: true }) amenities?: string[];
+  @IsOptional() @IsArray() @IsString({ each: true }) images?: string[];
+}
+
+export class StartMaintenanceDto {
+  @IsString() reason: string;
+  @IsOptional() @IsString() description?: string;
+  @IsOptional() @IsDateString() startDate?: string;
+  @IsOptional() @IsDateString() expectedEndDate?: string;
+  @IsOptional() @IsString() notes?: string;
+}
+
+export class EndMaintenanceDto {
+  @IsOptional() @IsString() notes?: string;
+  @IsOptional() @IsEnum(['AVAILABLE', 'UNAVAILABLE']) nextStatus?: string;
+}
+
+export class RecordNoticeDto {
+  @IsDateString() moveOutDate: string;
+  @IsOptional() @IsString() reason?: string;
+  @IsOptional() @IsString() notes?: string;
+}
+
+export class SetAvailabilityDto {
+  @IsEnum(ROOM_STATUSES) status: string;
+  @IsOptional() @IsDateString() availableFrom?: string;
+  @IsOptional() @IsString() notes?: string;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -93,11 +190,11 @@ export class RoomsService {
     @InjectModel(Room.name) private roomModel: Model<Room & Document>,
     @InjectModel(PropertyRef.name) private propertyModel: Model<PropertyRef & Document>,
     @InjectModel(TenantRef.name) private tenantRefModel: Model<TenantRef & Document>,
+    @InjectModel(RoomAvailabilityEvent.name) private eventModel: Model<RoomAvailabilityEvent & Document>,
     @InjectConnection() private connection: Connection,
-  ) {}
+    private subscriptionsService: SubscriptionsService,
+  ) { }
 
-  // Verify the property belongs to this landlord (admins bypass). Returns the property, and
-  // its organizationId so rooms inherit the correct org instead of trusting client input.
   private async assertPropertyOwnership(propertyId: string, userId: string, role: string) {
     if (!propertyId || !Types.ObjectId.isValid(propertyId))
       throw new BadRequestException('Valid propertyId is required');
@@ -110,12 +207,52 @@ export class RoomsService {
 
   async findByProperty(propertyId: string, userId: string, role: string) {
     await this.assertPropertyOwnership(propertyId, userId, role);
-    return this.roomModel
+    const rooms = await this.roomModel
       .find({ propertyId: new Types.ObjectId(propertyId), isDeleted: false })
-      .sort({ roomNumber: 1 });
+      .sort({ floor: 1, roomNumber: 1 });
+
+    // Populate active tenant names if room is occupied or in notice period
+    const roomIds = rooms.map(r => r._id);
+    const activeTenants = await this.tenantRefModel
+      .find({ roomId: { $in: roomIds }, status: { $in: ['ACTIVE', 'NOTICE_PERIOD'] }, isDeleted: false })
+      .populate('userId', 'firstName lastName email phone')
+      .lean();
+
+    const tenantMap = new Map<string, any[]>();
+    for (const t of activeTenants) {
+      const key = t.roomId?.toString();
+      if (key) {
+        if (!tenantMap.has(key)) tenantMap.set(key, []);
+        tenantMap.get(key)!.push(t);
+      }
+    }
+
+    return rooms.map(r => {
+      const doc = r.toObject();
+      const tenants = tenantMap.get(r._id.toString()) || [];
+      return {
+        ...doc,
+        currentTenants: tenants.map(t => ({
+          tenantId: t._id,
+          name: t.userId ? `${(t.userId as any).firstName} ${(t.userId as any).lastName || ''}`.trim() : 'Active Tenant',
+          email: (t.userId as any)?.email,
+          phone: (t.userId as any)?.phone,
+          status: t.status,
+          joiningDate: t.joiningDate,
+          vacatingDate: t.vacatingDate,
+        })),
+      };
+    });
   }
 
   async create(landlordId: string, role: string, dto: CreateRoomDto) {
+    if (role !== 'SUPER_ADMIN') {
+      const canAdd = await this.subscriptionsService.canAddUnits(landlordId, 1);
+      if (!canAdd.allowed) {
+        throw new ForbiddenException(canAdd.upgradeMessage);
+      }
+    }
+
     const session = await this.connection.startSession();
     try {
       let room!: Room & Document;
@@ -129,10 +266,27 @@ export class RoomsService {
           capacity: dto.capacity ?? 1,
           rentPerBed: dto.rentPerBed ?? 0,
           monthlyRent: dto.monthlyRent ?? 0,
+          deposit: dto.deposit ?? 0,
           floor: dto.floor ?? 0,
           description: dto.description ?? '',
+          furnishing: dto.furnishing ?? 'SEMI_FURNISHED',
           amenities: Array.isArray(dto.amenities) ? dto.amenities : [],
+          images: Array.isArray(dto.images) ? dto.images : [],
+          status: 'AVAILABLE',
         }], { session });
+
+        await this.eventModel.create([{
+          roomId: room._id,
+          propertyId: property._id,
+          landlordId: property.landlordId,
+          eventType: 'STATUS_CHANGE',
+          fromStatus: 'NONE',
+          toStatus: 'AVAILABLE',
+          reason: 'Room created',
+          actorId: new Types.ObjectId(landlordId),
+          actorRole: role,
+        }], { session });
+
         await this.syncPropertyCounters(property._id.toString(), session);
       });
       return room;
@@ -144,6 +298,13 @@ export class RoomsService {
   async createBulk(landlordId: string, role: string, dto: CreateRoomDto) {
     const count = Math.min(Math.max(Number(dto.count) || 1, 1), 200);
     const type: string = (dto.type ?? 'SINGLE').toUpperCase();
+
+    if (role !== 'SUPER_ADMIN') {
+      const canAdd = await this.subscriptionsService.canAddUnits(landlordId, count);
+      if (!canAdd.allowed) {
+        throw new ForbiddenException(canAdd.upgradeMessage);
+      }
+    }
 
     const session = await this.connection.startSession();
     try {
@@ -158,10 +319,27 @@ export class RoomsService {
           capacity: dto.capacity ?? 1,
           rentPerBed: dto.rentPerBed ?? 0,
           monthlyRent: dto.monthlyRent ?? 0,
+          deposit: dto.deposit ?? 0,
           floor: dto.floor ?? 0,
           description: dto.description ?? '',
+          furnishing: dto.furnishing ?? 'SEMI_FURNISHED',
+          status: 'AVAILABLE',
         }));
         rooms = await this.roomModel.create(docs, { session }) as Array<Room & Document>;
+
+        const eventDocs = rooms.map(r => ({
+          roomId: r._id,
+          propertyId: property._id,
+          landlordId: property.landlordId,
+          eventType: 'STATUS_CHANGE',
+          fromStatus: 'NONE',
+          toStatus: 'AVAILABLE',
+          reason: 'Bulk room creation',
+          actorId: new Types.ObjectId(landlordId),
+          actorRole: role,
+        }));
+        await this.eventModel.create(eventDocs, { session });
+
         await this.syncPropertyCounters(property._id.toString(), session);
       });
       return rooms;
@@ -170,15 +348,270 @@ export class RoomsService {
     }
   }
 
+  async update(id: string, userId: string, role: string, dto: UpdateRoomDto) {
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(id);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const allowed: Partial<UpdateRoomDto> = {};
+    for (const key of ['roomNumber', 'type', 'capacity', 'rentPerBed', 'monthlyRent', 'deposit', 'floor', 'description', 'furnishing', 'status', 'amenities', 'images'] as const) {
+      if ((dto as any)[key] !== undefined) (allowed as any)[key] = (dto as any)[key];
+    }
+    const updated = await this.roomModel.findByIdAndUpdate(id, allowed, { new: true });
+    if (updated) {
+      await this.syncPropertyCounters(updated.propertyId.toString());
+    }
+    return updated;
+  }
+
   async softDelete(id: string, userId: string, role: string) {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Room not found');
     const room = await this.roomModel.findById(id);
     if (!room || room.isDeleted) throw new NotFoundException('Room not found');
-    // Verify the room's property belongs to the caller before deleting.
     await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
 
     await this.roomModel.findByIdAndUpdate(id, { isDeleted: true });
     await this.syncPropertyCounters(room.propertyId.toString());
+  }
+
+  /**
+   * ── Availability Management Methods ──────────────────────────────────────
+   */
+
+  async startMaintenance(roomId: string, userId: string, role: string, dto: StartMaintenanceDto) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    const property = await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const fromStatus = room.status;
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const expectedEndDate = dto.expectedEndDate ? new Date(dto.expectedEndDate) : undefined;
+
+    const maintenanceDetails = {
+      reason: dto.reason,
+      description: dto.description || '',
+      startDate,
+      expectedEndDate,
+      notes: dto.notes || '',
+    };
+
+    const updated = await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $set: {
+          status: 'MAINTENANCE',
+          maintenanceDetails,
+          availableFrom: expectedEndDate,
+        },
+      },
+      { new: true },
+    );
+
+    await this.eventModel.create({
+      roomId: room._id,
+      propertyId: property._id,
+      landlordId: property.landlordId,
+      eventType: 'MAINTENANCE_START',
+      fromStatus,
+      toStatus: 'MAINTENANCE',
+      reason: dto.reason,
+      notes: dto.notes,
+      startDate,
+      expectedEndDate,
+      actorId: new Types.ObjectId(userId),
+      actorRole: role,
+    });
+
+    return updated;
+  }
+
+  async endMaintenance(roomId: string, userId: string, role: string, dto?: EndMaintenanceDto) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    const property = await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const fromStatus = room.status;
+    const nextStatus = dto?.nextStatus || 'AVAILABLE';
+
+    const updated = await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $set: {
+          status: nextStatus,
+          availableFrom: nextStatus === 'AVAILABLE' ? new Date() : undefined,
+          'maintenanceDetails.actualEndDate': new Date(),
+        },
+      },
+      { new: true },
+    );
+
+    await this.eventModel.create({
+      roomId: room._id,
+      propertyId: property._id,
+      landlordId: property.landlordId,
+      eventType: 'MAINTENANCE_END',
+      fromStatus,
+      toStatus: nextStatus,
+      notes: dto?.notes || 'Maintenance completed',
+      actualEndDate: new Date(),
+      actorId: new Types.ObjectId(userId),
+      actorRole: role,
+    });
+
+    return updated;
+  }
+
+  async recordNotice(roomId: string, userId: string, role: string, dto: RecordNoticeDto) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    const property = await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const fromStatus = room.status;
+    const moveOutDate = new Date(dto.moveOutDate);
+    const nextDay = new Date(moveOutDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+
+    const noticeDetails = {
+      submittedAt: new Date(),
+      moveOutDate,
+      reason: dto.reason || 'Notice period submitted',
+      recordedBy: new Types.ObjectId(userId),
+      status: 'CONFIRMED',
+    };
+
+    const updated = await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $set: {
+          status: 'NOTICE_PERIOD',
+          noticeDetails,
+          availableFrom: nextDay, // Publicly bookable from the day after move out
+        },
+      },
+      { new: true },
+    );
+
+    await this.eventModel.create({
+      roomId: room._id,
+      propertyId: property._id,
+      landlordId: property.landlordId,
+      eventType: 'NOTICE_RECORDED',
+      fromStatus,
+      toStatus: 'NOTICE_PERIOD',
+      reason: dto.reason,
+      notes: dto.notes,
+      expectedEndDate: moveOutDate,
+      actorId: new Types.ObjectId(userId),
+      actorRole: role,
+    });
+
+    return updated;
+  }
+
+  async cancelNotice(roomId: string, userId: string, role: string) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    const property = await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const fromStatus = room.status;
+
+    const updated = await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $set: {
+          status: 'OCCUPIED',
+          noticeDetails: null,
+          availableFrom: undefined,
+        },
+      },
+      { new: true },
+    );
+
+    await this.eventModel.create({
+      roomId: room._id,
+      propertyId: property._id,
+      landlordId: property.landlordId,
+      eventType: 'NOTICE_CANCELLED',
+      fromStatus,
+      toStatus: 'OCCUPIED',
+      reason: 'Notice period cancelled',
+      actorId: new Types.ObjectId(userId),
+      actorRole: role,
+    });
+
+    return updated;
+  }
+
+  async setAvailability(roomId: string, userId: string, role: string, dto: SetAvailabilityDto) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    const property = await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    const fromStatus = room.status;
+    const availableFrom = dto.availableFrom ? new Date(dto.availableFrom) : (dto.status === 'AVAILABLE' ? new Date() : undefined);
+
+    const updated = await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $set: {
+          status: dto.status,
+          availableFrom,
+        },
+      },
+      { new: true },
+    );
+
+    await this.eventModel.create({
+      roomId: room._id,
+      propertyId: property._id,
+      landlordId: property.landlordId,
+      eventType: 'STATUS_CHANGE',
+      fromStatus,
+      toStatus: dto.status,
+      notes: dto.notes,
+      startDate: availableFrom,
+      actorId: new Types.ObjectId(userId),
+      actorRole: role,
+    });
+
+    return updated;
+  }
+
+  async getRoomEvents(roomId: string, userId: string, role: string) {
+    if (!Types.ObjectId.isValid(roomId)) throw new NotFoundException('Room not found');
+    const room = await this.roomModel.findById(roomId);
+    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
+    await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
+
+    return this.eventModel
+      .find({ roomId: new Types.ObjectId(roomId) })
+      .populate('actorId', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .limit(50);
+  }
+
+  async getPropertyTimeline(propertyId: string, userId: string, role: string) {
+    await this.assertPropertyOwnership(propertyId, userId, role);
+    const rooms = await this.roomModel
+      .find({ propertyId: new Types.ObjectId(propertyId), isDeleted: false })
+      .sort({ floor: 1, roomNumber: 1 });
+
+    const roomIds = rooms.map(r => r._id);
+    const recentEvents = await this.eventModel
+      .find({ propertyId: new Types.ObjectId(propertyId) })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    return {
+      rooms,
+      recentEvents,
+    };
   }
 
   /** Recalculate and sync property-level room/bed counters from actual documents. */
@@ -198,10 +631,7 @@ export class RoomsService {
     return { totalRooms, totalBeds };
   }
 
-  /**
-   * Recalculate `occupiedCount` and `status` for a single room based on
-   * active tenant records. Call this after any tenant create/vacate.
-   */
+  /** Recalculate room occupancy from tenant records */
   async syncRoomOccupancy(roomId: string | Types.ObjectId) {
     if (!roomId || !Types.ObjectId.isValid(roomId.toString())) return;
     const room = await this.roomModel.findById(roomId);
@@ -213,33 +643,16 @@ export class RoomsService {
       isDeleted: false,
     });
 
-    let status: string;
-    if (occupiedCount === 0) status = 'AVAILABLE';
-    else if (occupiedCount >= (room.capacity ?? 1)) status = 'FULLY_OCCUPIED';
-    else status = 'PARTIALLY_OCCUPIED';
+    let status = room.status;
+    if (status !== 'MAINTENANCE' && status !== 'UNAVAILABLE') {
+      if (occupiedCount === 0) status = 'AVAILABLE';
+      else if (occupiedCount >= (room.capacity ?? 1)) status = 'FULLY_OCCUPIED';
+      else status = 'PARTIALLY_OCCUPIED';
+    }
 
     await this.roomModel.findByIdAndUpdate(roomId, { $set: { occupiedCount, status } });
   }
 
-  async update(id: string, userId: string, role: string, dto: UpdateRoomDto) {
-    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Room not found');
-    const room = await this.roomModel.findById(id);
-    if (!room || room.isDeleted) throw new NotFoundException('Room not found');
-    await this.assertPropertyOwnership(room.propertyId.toString(), userId, role);
-
-    // Whitelist mutable fields — clients can't move a room to another property or edit occupancy directly.
-    const allowed: Partial<UpdateRoomDto> = {};
-    for (const key of ['roomNumber', 'type', 'capacity', 'rentPerBed', 'monthlyRent', 'floor', 'description', 'status', 'amenities'] as const) {
-      if ((dto as any)[key] !== undefined) (allowed as any)[key] = (dto as any)[key];
-    }
-    const updated = await this.roomModel.findByIdAndUpdate(id, allowed, { new: true });
-    if (updated) {
-      await this.syncPropertyCounters(updated.propertyId.toString());
-    }
-    return updated;
-  }
-
-  // Ownership-checked wrapper for the exposed counter-repair endpoint.
   async repairCounters(propertyId: string, userId: string, role: string) {
     await this.assertPropertyOwnership(propertyId, userId, role);
     return this.syncPropertyCounters(propertyId);
@@ -251,8 +664,8 @@ export class RoomsService {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('LANDLORD', 'PROPERTY_MANAGER', 'SUPER_ADMIN')
 @Controller({ path: 'rooms', version: '1' })
-class RoomsController {
-  constructor(private svc: RoomsService) {}
+export class RoomsController {
+  constructor(private svc: RoomsService) { }
 
   @Get()
   findByQuery(@Query('propertyId') propertyId: string, @CurrentUser() user: any) {
@@ -263,6 +676,16 @@ class RoomsController {
   @Get('sync/:propertyId')
   sync(@Param('propertyId') propertyId: string, @CurrentUser() user: any) {
     return this.svc.repairCounters(propertyId, user.id, user.role);
+  }
+
+  @Get('timeline/:propertyId')
+  getTimeline(@Param('propertyId') pid: string, @CurrentUser() user: any) {
+    return this.svc.getPropertyTimeline(pid, user.id, user.role).then(d => ({ data: d }));
+  }
+
+  @Get(':id/events')
+  getRoomEvents(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.svc.getRoomEvents(id, user.id, user.role).then(d => ({ data: d }));
   }
 
   @Get('by-property/:propertyId')
@@ -287,6 +710,36 @@ class RoomsController {
     return { data: updated };
   }
 
+  @Post(':id/maintenance/start')
+  async startMaintenance(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: StartMaintenanceDto) {
+    const updated = await this.svc.startMaintenance(id, user.id, user.role, dto);
+    return { message: 'Room maintenance started', data: updated };
+  }
+
+  @Post(':id/maintenance/end')
+  async endMaintenance(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: EndMaintenanceDto) {
+    const updated = await this.svc.endMaintenance(id, user.id, user.role, dto);
+    return { message: 'Room maintenance completed', data: updated };
+  }
+
+  @Post(':id/notice')
+  async recordNotice(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: RecordNoticeDto) {
+    const updated = await this.svc.recordNotice(id, user.id, user.role, dto);
+    return { message: 'Notice period recorded', data: updated };
+  }
+
+  @Delete(':id/notice')
+  async cancelNotice(@Param('id') id: string, @CurrentUser() user: any) {
+    const updated = await this.svc.cancelNotice(id, user.id, user.role);
+    return { message: 'Notice period cancelled', data: updated };
+  }
+
+  @Patch(':id/availability')
+  async setAvailability(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: SetAvailabilityDto) {
+    const updated = await this.svc.setAvailability(id, user.id, user.role, dto);
+    return { message: 'Room availability updated', data: updated };
+  }
+
   @Delete(':id')
   async remove(@Param('id') id: string, @CurrentUser() user: any) {
     await this.svc.softDelete(id, user.id, user.role);
@@ -302,10 +755,12 @@ class RoomsController {
       { name: Room.name, schema: RoomSchema },
       { name: PropertyRef.name, schema: PropertyRefSchema },
       { name: TenantRef.name, schema: TenantRefSchema },
+      { name: RoomAvailabilityEvent.name, schema: RoomAvailabilityEventSchema },
     ]),
+    forwardRef(() => UsersModule),
   ],
   controllers: [RoomsController],
   providers: [RoomsService],
-  exports: [RoomsService],
+  exports: [RoomsService, MongooseModule],
 })
-export class RoomsModule {}
+export class RoomsModule { }

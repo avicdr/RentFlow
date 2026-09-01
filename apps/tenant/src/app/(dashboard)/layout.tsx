@@ -17,6 +17,7 @@ import { useTheme } from '@/components/theme-provider';
 const nav = [
   { name: 'Home',          href: '/',              icon: Home },
   { name: 'RentPass™',     href: '/rentpass',      icon: Shield },
+  { name: 'Applications', href: '/applications',  icon: FileText },
   { name: 'My Rent',       href: '/payments',      icon: CreditCard },
   { name: 'Receipts',      href: '/receipts',      icon: FileText },
   { name: 'Utilities',     href: '/utilities',     icon: Zap },
@@ -90,9 +91,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 
         {/* Tenant Portal Badge & Profile Info */}
         <div className="p-4 border-b border-border space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg w-fit bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800">
-            <Home className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Tenant Portal</span>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full w-fit bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 shadow-xs">
+            <Home className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 tracking-wide">Tenant Portal</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm">

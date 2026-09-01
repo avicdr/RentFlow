@@ -129,9 +129,9 @@ function PropertyCard({ listing }: { listing: any }) {
               <Phone className="h-4 w-4" />
               Contact
             </button>
-            <Link href={`/marketplace/${listing._id}`}>
-              <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
-                View Details <ChevronRight className="h-4 w-4" />
+            <Link href={`/property/${listing.slug || listing._id}`}>
+              <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-xs">
+                View & Apply <ChevronRight className="h-4 w-4" />
               </button>
             </Link>
           </div>

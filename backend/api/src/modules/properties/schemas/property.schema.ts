@@ -11,6 +11,25 @@ export class Property {
   @Prop({ default: '' }) description: string;
   @Prop({ type: String, enum: ['PG', 'APARTMENT', 'VILLA', 'COMMERCIAL', 'HOSTEL'], required: true }) type: string;
   @Prop({ type: String, enum: ['ACTIVE', 'INACTIVE', 'MAINTENANCE', 'DRAFT'], default: 'DRAFT' }) status: string;
+  
+  // Public listing & shareable URL support
+  @Prop({ type: String, trim: true, sparse: true, index: true }) slug?: string;
+  @Prop({ type: String, enum: ['DRAFT', 'PUBLISHED', 'UNPUBLISHED', 'ARCHIVED'], default: 'DRAFT', index: true })
+  listingStatus: string;
+  @Prop() publishedAt?: Date;
+  @Prop() unpublishedAt?: Date;
+  @Prop({ type: Object, default: {} }) listingDetails?: {
+    houseRules?: string[];
+    furnishing?: 'FURNISHED' | 'SEMI_FURNISHED' | 'UNFURNISHED';
+    nearbyLandmarks?: string[];
+    securityDepositMonths?: number;
+    minimumStayMonths?: number;
+    noticePeriodDays?: number;
+    genderPreference?: 'ANY' | 'MALE' | 'FEMALE' | 'CO_ED';
+    foodIncluded?: boolean;
+    gateClosingTime?: string;
+  };
+
   @Prop({ required: true, type: Object }) address: {
     line1: string; line2?: string; city: string;
     state: string; pincode: string; country: string;
@@ -19,6 +38,7 @@ export class Property {
     wifi?: boolean; parking?: boolean; cctv?: boolean;
     security?: boolean; laundry?: boolean; gym?: boolean;
     powerBackup?: boolean; waterSupply?: string;
+    ac?: boolean; food?: boolean; cleaning?: boolean;
   };
   @Prop({ type: [String], default: [] }) images: string[];
   @Prop({ type: [Types.ObjectId], ref: 'User', default: [] }) managedBy: Types.ObjectId[];
@@ -64,3 +84,5 @@ PropertySchema.index({ landlordId: 1, status: 1 });
 PropertySchema.index({ organizationId: 1, isDeleted: 1 });
 PropertySchema.index({ 'address.city': 1, type: 1, status: 1 });
 PropertySchema.index({ isListed: 1, status: 1 });
+PropertySchema.index({ slug: 1 }, { unique: true, sparse: true });
+PropertySchema.index({ listingStatus: 1, isDeleted: 1 });

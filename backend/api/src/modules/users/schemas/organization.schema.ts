@@ -7,8 +7,9 @@ export type OrganizationDocument = Organization & Document;
 export class Organization {
   @Prop({ required: true, trim: true }) name: string;
   @Prop({ required: true, type: Types.ObjectId, ref: 'User', index: true }) ownerId: Types.ObjectId;
-  @Prop({ type: String, enum: ['SOLO', 'GROWTH', 'SCALE', 'ENTERPRISE'], default: 'SOLO' }) tier: string;
-  @Prop({ default: 1 }) propertyLimit: number;
+  @Prop({ type: String, enum: ['LITE', 'STARTER', 'GROWTH', 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE'], default: 'LITE' }) tier: string;
+  @Prop({ default: 5 }) unitLimit: number;
+  @Prop({ type: String, enum: ['MONTHLY', 'ANNUAL'], default: 'MONTHLY' }) billingCycle: string;
   @Prop({ type: String, enum: ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'TRIAL'], default: 'ACTIVE' }) subscriptionStatus: string;
   @Prop() subscriptionExpiresAt?: Date;
   @Prop({ default: false }) isDeleted: boolean;

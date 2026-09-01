@@ -63,12 +63,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       )}>
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
-          <div className="h-8 w-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center">
-            <Shield className="h-4 w-4 text-indigo-400" />
+          <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/30">
+            <Shield className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-foreground font-semibold text-sm">RentFlow</p>
-            <p className="text-indigo-400 text-xs">Admin Panel</p>
+            <p className="text-foreground font-bold text-base leading-none">RentFlow</p>
+            <p className="text-indigo-600 dark:text-indigo-400 text-xs font-semibold mt-1">Admin Panel</p>
           </div>
           <button onClick={onClose} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
             <X className="h-4 w-4" />
@@ -76,14 +76,14 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </div>
 
         {/* Admin user */}
-        <div className="px-4 py-3 border-b border-border">
+        <div className="px-4 py-3.5 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 shadow-xs">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">{user?.firstName} {user?.lastName}</p>
-              <p className="text-xs text-indigo-400">Super Admin</p>
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">Super Admin</p>
             </div>
           </div>
         </div>
@@ -100,13 +100,13 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 className={cn(
                   'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150',
                   active
-                    ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30 font-semibold'
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                 )}
               >
-                <item.icon className={cn('h-4 w-4 flex-shrink-0', active && 'text-indigo-400')} />
+                <item.icon className="h-4 w-4 flex-shrink-0" />
                 <span>{item.name}</span>
-                {active && <ChevronRight className="ml-auto h-3.5 w-3.5 text-indigo-400" />}
+                {active && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
               </Link>
             );
           })}

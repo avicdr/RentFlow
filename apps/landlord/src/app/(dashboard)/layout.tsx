@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Building2, Users, CreditCard, MessageSquare,
   BarChart3, ListChecks, Settings, LogOut, Bell, Menu, X,
-  ChevronRight, Home, Crown, Sun, Moon, DollarSign, MessageCircle,
+  ChevronRight, Home, Crown, Sun, Moon, DollarSign, MessageCircle, ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -17,6 +17,7 @@ import { useTheme } from '@/components/theme-provider';
 const navigation = [
   { name: 'Dashboard',    href: '/',                    icon: LayoutDashboard },
   { name: 'Properties',  href: '/properties',           icon: Building2 },
+  { name: 'Applications',href: '/applications',         icon: ClipboardList },
   { name: 'Tenants',     href: '/tenants',              icon: Users },
   { name: 'Finances',    href: '/finances',             icon: DollarSign },
   { name: 'Payments',    href: '/payments',             icon: CreditCard },
@@ -60,6 +61,12 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
     refetchInterval: 10000,
   });
 
+  const { data: pendingAppCount } = useQuery({
+    queryKey: ['landlord-pending-apps-count'],
+    queryFn: () => apiClient.get('/api/v1/applications/landlord?status=SUBMITTED').then(r => r.data.meta?.total || 0).catch(() => 0),
+    refetchInterval: 20000,
+  });
+
   return (
     <>
       {open && <div className="fixed inset-0 z-40 bg-black/70 lg:hidden" onClick={onClose} />}
@@ -70,23 +77,26 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         open ? 'translate-x-0' : '-translate-x-full',
       )}>
         {/* Logo */}
-        <div className="flex h-16 items-center gap-3 px-5 border-b border-border">
-          <div className="h-8 w-8 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-500/30">
-            <Building2 className="h-4 w-4 text-white" />
+        <div className="flex items-center gap-3 px-5 h-16 border-b border-border">
+          <div className="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/30">
+            <Building2 className="h-5 w-5" />
           </div>
-          <span className="text-lg font-bold text-foreground">RentFlow</span>
+          <div>
+            <span className="font-bold text-base text-foreground tracking-tight">RentFlow</span>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Landlord</p>
+          </div>
           <button onClick={onClose} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* User info */}
-        <div className="px-4 py-4 border-b border-border">
+        {/* User Card */}
+        <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+            <div className="h-9 w-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-xs font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0">
               {user?.firstName?.[0]}{user?.lastName?.[0]}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground truncate">{user?.firstName} {user?.lastName}</p>
               <p className="text-xs text-muted-foreground truncate">{user?.role?.replace('_', ' ')}</p>
             </div>
@@ -110,7 +120,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                 )}
               >
                 <item.icon className="h-4 w-4 flex-shrink-0" />
-                {item.name}
+                <span>{item.name}</span>
                 {item.href === '/messages' && (unreadMsgCount ?? 0) > 0 && (
                   <span className={cn(
                     'ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full',
@@ -119,7 +129,15 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                     {unreadMsgCount}
                   </span>
                 )}
-                {active && item.href !== '/messages' && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
+                {item.href === '/applications' && (pendingAppCount ?? 0) > 0 && (
+                  <span className={cn(
+                    'ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full',
+                    active ? 'bg-white text-indigo-700' : 'bg-amber-500 text-white shadow-sm',
+                  )}>
+                    {pendingAppCount}
+                  </span>
+                )}
+                {active && item.href !== '/messages' && item.href !== '/applications' && <ChevronRight className="ml-auto h-3.5 w-3.5 opacity-70" />}
               </Link>
             );
           })}

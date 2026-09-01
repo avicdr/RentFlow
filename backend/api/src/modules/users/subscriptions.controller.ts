@@ -16,7 +16,7 @@ export class SubscriptionsController {
   constructor(
     private readonly svc: SubscriptionsService,
     private readonly razorpaySvc: RazorpayService,
-  ) {}
+  ) { }
 
   @Get()
   getSubscription(@CurrentUser('id') userId: string) {
@@ -27,8 +27,8 @@ export class SubscriptionsController {
   // Landlords must go through create-order → verify-payment (a real payment) to upgrade.
   @Post('upgrade')
   @Roles('SUPER_ADMIN')
-  upgrade(@Body('userId') userId: string, @Body('tier') tier: string) {
-    return this.svc.upgradeTier(userId, tier);
+  upgrade(@Body('userId') userId: string, @Body('tier') tier: string, @Body('billingCycle') billingCycle?: string) {
+    return this.svc.upgradeTier(userId, tier, billingCycle);
   }
 
   @Post('create-order')
@@ -36,8 +36,9 @@ export class SubscriptionsController {
     @CurrentUser('id') userId: string,
     @CurrentUser('email') email: string,
     @Body('tier') tier: string,
+    @Body('billingCycle') billingCycle?: string,
   ) {
-    const order = await this.razorpaySvc.createSubscriptionOrder(tier, userId);
+    const order = await this.razorpaySvc.createSubscriptionOrder(tier, userId, billingCycle);
     return { data: order };
   }
 
@@ -52,10 +53,10 @@ export class SubscriptionsController {
     if (!valid) throw new BadRequestException('Payment signature verification failed');
 
     // Derive the tier from the verified order — never trust a client-supplied tier here,
-    // otherwise a user could pay for SOLO and claim ENTERPRISE.
-    const tier = await this.razorpaySvc.getVerifiedTierForOrder(orderId, userId);
+    // otherwise a user could pay for LITE and claim ENTERPRISE.
+    const { tier, billingCycle } = await this.razorpaySvc.getVerifiedTierForOrder(orderId, userId);
 
-    await this.svc.upgradeTier(userId, tier);
-    return { message: 'Payment verified and subscription upgraded', tier };
+    await this.svc.upgradeTier(userId, tier, billingCycle);
+    return { message: 'Payment verified and subscription upgraded', tier, billingCycle };
   }
 }

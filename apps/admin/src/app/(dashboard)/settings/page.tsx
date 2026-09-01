@@ -6,8 +6,8 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-bold text-white">System Settings</h1>
-        <p className="text-gray-400 text-sm mt-1">Configure platform-wide settings</p>
+        <h1 className="text-2xl font-bold text-foreground">System Settings</h1>
+        <p className="text-muted-foreground text-sm mt-1">Configure platform-wide settings</p>
       </div>
 
       <div className="space-y-4">
@@ -40,20 +40,20 @@ export default function AdminSettingsPage() {
             ],
           },
         ].map(({ icon: Icon, title, items }) => (
-          <div key={title} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-gray-200 mb-4 flex items-center gap-2">
-              <Icon className="h-4 w-4 text-indigo-400" /> {title}
+          <div key={title} className="bg-card border border-border rounded-2xl p-5 shadow-xs">
+            <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Icon className="h-4 w-4 text-indigo-500" /> {title}
             </h2>
             <div className="space-y-1">
               {items.map(({ label, desc, checked }) => (
-                <div key={label} className="flex items-center justify-between py-3 border-b border-gray-800 last:border-0">
+                <div key={label} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
-                    <p className="text-sm font-medium text-gray-200">{label}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{desc}</p>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
                     <input type="checkbox" defaultChecked={checked} className="sr-only peer" />
-                    <div className="w-9 h-5 bg-gray-700 peer-checked:bg-indigo-600 rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-transform" />
+                    <div className="w-9 h-5 bg-muted peer-checked:bg-indigo-600 rounded-full peer peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-transform shadow-xs" />
                   </label>
                 </div>
               ))}

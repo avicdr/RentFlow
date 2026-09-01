@@ -41,6 +41,13 @@ export default function TenantDashboard() {
     queryFn: () => apiClient.get('/api/v1/complaints', { params: { limit: 5 } }).then(r => r.data),
   });
 
+  const { data: kycRes } = useQuery({
+    queryKey: ['my-kyc-status'],
+    queryFn: () => apiClient.get('/api/v1/kyc/status').then(r => r.data.data).catch(() => null),
+  });
+
+  const isKycVerified = kycRes?.isVerified || profile?.verificationStatus?.aadhaar === 'VERIFIED' || (user as any)?.verificationStatus === 'VERIFIED';
+
   const payments = paymentsData?.data ?? [];
   const pendingPayments = payments.filter((p: any) => ['PENDING', 'PAYMENT_SUBMITTED', 'UNDER_REVIEW'].includes(p.status));
   const latestPending = pendingPayments[0];
@@ -110,6 +117,35 @@ export default function TenantDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* ── 1.5 DIGILOCKER KYC ONBOARDING BANNER (IF UNVERIFIED) ── */}
+      {!isKycVerified && (
+        <div className="rounded-3xl p-6 bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-purple-500/10 border border-amber-500/30 dark:border-amber-500/20 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="h-12 w-12 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+              <Shield className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-base text-foreground">Verify Your Identity with DigiLocker</h3>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300">
+                  Action Required
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
+                Authenticate your government Aadhaar or PAN via DigiLocker in 60 seconds to activate instant receipts, maximum RentPass™ score, and fast-track lease approvals.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/kyc"
+            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all hover:scale-105 shadow-md shadow-indigo-500/20"
+          >
+            <span>Verify via DigiLocker</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
 
       {/* ── 2. RENT DUE ALERT (IF PENDING) ────────────────────── */}
       {latestPending && (

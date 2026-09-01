@@ -83,8 +83,8 @@ export default function TenantRentPassPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
-              <Sparkles className="h-3.5 w-3.5" /> RentFlow Portable Passport
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800 font-bold text-xs shadow-xs">
+              <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" /> RentFlow Portable Passport
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mt-1">RentPass™</h1>
@@ -102,92 +102,92 @@ export default function TenantRentPassPage() {
       </div>
 
       {/* ── DIGITAL RENTPASS PASSPORT CARD ───────────────────── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border-2 border-indigo-500/30 p-6 sm:p-8 text-white shadow-2xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-white via-indigo-50/40 to-purple-50/40 dark:from-[#0d0b24] dark:via-[#130f36] dark:to-[#0d0b24] border-2 border-indigo-200 dark:border-indigo-500/30 p-6 sm:p-8 text-foreground dark:text-white shadow-xl transition-all">
         {/* Glow background accent */}
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Passport Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-indigo-500/20 relative z-10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-indigo-100 dark:border-indigo-500/20 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-extrabold text-2xl text-white shadow-lg">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center font-extrabold text-2xl text-white shadow-lg shadow-indigo-500/20">
               {pass.tenant?.fullName?.[0]}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">{pass.tenant?.fullName}</h2>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-semibold">
-                  <CheckCircle2 className="h-3 w-3" /> KYC Verified
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">{pass.tenant?.fullName}</h2>
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800 text-xs font-bold shadow-xs">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> KYC Verified
                 </span>
               </div>
-              <p className="text-xs text-indigo-200 mt-1">
+              <p className="text-xs text-slate-500 dark:text-indigo-200 mt-1">
                 Verified Resident · On RentFlow since {new Date(pass.tenant?.memberSince).getFullYear()}
               </p>
             </div>
           </div>
 
           {/* Reliability Score Ring */}
-          <div className="flex items-center gap-4 bg-indigo-900/40 border border-indigo-400/30 rounded-2xl p-3 px-5 self-start sm:self-auto">
+          <div className="flex items-center gap-4 bg-indigo-50/80 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-400/30 rounded-2xl p-3 px-5 self-start sm:self-auto shadow-xs">
             <div className="text-center">
-              <span className="text-3xl font-black text-white">{pass.reliabilityScore?.score}</span>
-              <span className="text-xs font-semibold text-indigo-300"> / 100</span>
+              <span className="text-3xl font-black text-indigo-700 dark:text-white">{pass.reliabilityScore?.score}</span>
+              <span className="text-xs font-semibold text-slate-500 dark:text-indigo-300"> / 100</span>
             </div>
-            <div className="border-l border-indigo-500/30 pl-3">
-              <p className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider">Reliability Score</p>
-              <p className="text-xs text-emerald-300 font-semibold mt-0.5">Top Tier Rental Record</p>
+            <div className="border-l border-indigo-200 dark:border-indigo-500/30 pl-3">
+              <p className="text-[11px] font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">Reliability Score</p>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 font-bold mt-0.5">Top Tier Rental Record</p>
             </div>
           </div>
         </div>
 
         {/* Verified Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-indigo-500/20 relative z-10">
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <p className="text-xs text-indigo-200">On-Time Payments</p>
-            <p className="text-2xl font-extrabold text-white mt-1">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-6 border-b border-indigo-100 dark:border-indigo-500/20 relative z-10">
+          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/90 dark:border-white/10 shadow-xs">
+            <p className="text-xs text-slate-500 dark:text-indigo-200 font-medium">On-Time Payments</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {pass.paymentConsistency?.onTimeRate}%
             </p>
-            <p className="text-[11px] text-indigo-300 mt-1">
+            <p className="text-[11px] text-slate-500 dark:text-indigo-300 mt-1">
               {pass.paymentConsistency?.onTimePayments} / {pass.paymentConsistency?.totalTransactions} on-time
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <p className="text-xs text-indigo-200">Verified Rent Paid</p>
-            <p className="text-2xl font-extrabold text-white mt-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/90 dark:border-white/10 shadow-xs">
+            <p className="text-xs text-slate-500 dark:text-indigo-200 font-medium">Verified Rent Paid</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {formatCurrency(pass.paymentConsistency?.totalPaidRent ?? 0)}
             </p>
-            <p className="text-[11px] text-indigo-300 mt-1">Total through platform</p>
+            <p className="text-[11px] text-slate-500 dark:text-indigo-300 mt-1">Total through platform</p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <p className="text-xs text-indigo-200">Tenancy History</p>
-            <p className="text-2xl font-extrabold text-white mt-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/90 dark:border-white/10 shadow-xs">
+            <p className="text-xs text-slate-500 dark:text-indigo-200 font-medium">Tenancy History</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {pass.rentalHistory?.totalMonthsRented} mo
             </p>
-            <p className="text-[11px] text-indigo-300 mt-1">
+            <p className="text-[11px] text-slate-500 dark:text-indigo-300 mt-1">
               {pass.rentalHistory?.totalPropertiesRented} propert{pass.rentalHistory?.totalPropertiesRented === 1 ? 'y' : 'ies'} rented
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <p className="text-xs text-indigo-200">Outstanding Dues</p>
-            <p className="text-2xl font-extrabold text-emerald-400 mt-1">
+          <div className="p-4 rounded-2xl bg-white dark:bg-white/5 border border-slate-200/90 dark:border-white/10 shadow-xs">
+            <p className="text-xs text-slate-500 dark:text-indigo-200 font-medium">Outstanding Dues</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
               {formatCurrency(pass.paymentConsistency?.outstandingDues ?? 0)}
             </p>
-            <p className="text-[11px] text-emerald-300 mt-1">Clean balance record</p>
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-300 mt-1 font-semibold">Clean balance record</p>
           </div>
         </div>
 
         {/* Breakdown Factors & Positive Highlights */}
         <div className="pt-6 space-y-4 relative z-10">
-          <p className="text-xs font-bold text-indigo-200 uppercase tracking-wider">Verified Trust Signals</p>
+          <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">Verified Trust Signals</p>
           <div className="flex flex-wrap gap-2">
             {(pass.reliabilityScore?.positiveFactors ?? []).map((factor: string, i: number) => (
               <span
                 key={i}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-400/30 text-xs font-medium text-indigo-100"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-500/20 border border-indigo-200 dark:border-indigo-400/30 text-xs font-semibold text-indigo-900 dark:text-indigo-100 shadow-xs"
               >
-                <Check className="h-3.5 w-3.5 text-emerald-400" />
+                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 {factor}
               </span>
             ))}

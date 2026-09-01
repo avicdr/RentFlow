@@ -71,6 +71,33 @@ export class User {
   } | null;
   @Prop({ type: String, enum: ['NOT_VERIFIED', 'PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED'], default: 'NOT_VERIFIED' })
   verificationStatus: string;
+  @Prop({
+    type: {
+      digiLockerId: String,
+      verifiedAt: Date,
+      documentType: String,
+      maskedAadhaar: String,
+      fullName: String,
+      dob: String,
+      gender: String,
+      address: String,
+      issuer: String,
+      certificateSignature: String,
+    },
+    default: null,
+  })
+  digilockerData?: {
+    digiLockerId?: string;
+    verifiedAt?: Date;
+    documentType?: string;
+    maskedAadhaar?: string;
+    fullName?: string;
+    dob?: string;
+    gender?: string;
+    address?: string;
+    issuer?: string;
+    certificateSignature?: string;
+  } | null;
   @Prop({ default: false })
   isLandlordVerified: boolean;
   @Prop({

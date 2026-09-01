@@ -31,11 +31,12 @@ export class PropertiesController {
     @CurrentUser('id') userId: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('listingStatus') listingStatus?: string,
     @Query('type') type?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return this.svc.findAll(userId, { search, status, type, page: +page, limit: +limit });
+    return this.svc.findAll(userId, { search, status, listingStatus, type, page: +page, limit: +limit });
   }
 
   @Get('stats')
@@ -46,6 +47,16 @@ export class PropertiesController {
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.svc.findOne(id, userId);
+  }
+
+  @Post(':id/publish')
+  publish(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.svc.publish(id, userId);
+  }
+
+  @Post(':id/unpublish')
+  unpublish(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.svc.unpublish(id, userId);
   }
 
   @Patch(':id')

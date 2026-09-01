@@ -20,7 +20,7 @@ export class AdminService {
     @InjectModel(Tenant.name) private tenantModel: Model<any>,
     private auditService: AuditService,
     private notificationsService: NotificationsService,
-  ) {}
+  ) { }
 
   async getPlatformStats() {
     const now = new Date();
@@ -79,11 +79,29 @@ export class AdminService {
       this.orgModel.countDocuments({ isDeleted: false, subscriptionStatus: 'ACTIVE' }),
     ]);
 
-    const TIER_PRICES: Record<string, number> = { SOLO: 499, GROWTH: 1499, SCALE: 2999, ENTERPRISE: 4999 };
-    const tierMap: Record<string, number> = {};
+    const TIER_PRICES: Record<string, number> = {
+      LITE: 99,
+      STARTER: 299,
+      GROWTH: 699,
+      PROFESSIONAL: 1499,
+      BUSINESS: 2999,
+      ENTERPRISE: 0,
+      // Legacy tier aliases
+      SOLO: 99,
+      SCALE: 1499,
+    };
+    const tierMap: Record<string, number> = {
+      LITE: 0,
+      STARTER: 0,
+      GROWTH: 0,
+      PROFESSIONAL: 0,
+      BUSINESS: 0,
+      ENTERPRISE: 0,
+    };
     let mrr = 0;
     for (const t of subscriptionBreakdown) {
-      tierMap[t._id] = t.count;
+      const normalizedTier = t._id === 'SOLO' ? 'LITE' : t._id === 'SCALE' ? 'PROFESSIONAL' : t._id;
+      tierMap[normalizedTier] = (tierMap[normalizedTier] || 0) + t.count;
       mrr += (TIER_PRICES[t._id] ?? 0) * t.count;
     }
 
@@ -261,7 +279,7 @@ export class AdminService {
       NotificationType.GENERAL,
       'KYC Verified Successfully',
       'Your KYC verification has been reviewed and approved by the RentFlow team.',
-    ).catch(() => {});
+    ).catch(() => { });
 
     return { data: { success: true, message: 'KYC verified and approved' } };
   }
@@ -293,7 +311,7 @@ export class AdminService {
       NotificationType.GENERAL,
       'KYC Verification Requires Action',
       msg,
-    ).catch(() => {});
+    ).catch(() => { });
 
     return { data: { success: true, message: 'KYC rejected' } };
   }

@@ -2,17 +2,24 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 
-const TIER_AMOUNTS_PAISE: Record<string, number> = {
-  SOLO: 49900,   // ₹499
-  GROWTH: 99900,   // ₹999
-  PROFESSIONAL: 249900,   // ₹1,499
-  BUSINESS: 499900,  // ₹4,999
+// ─── Razorpay Pricing (in paise) ─────────────────────────────────────────────
+// Unit-based 6-tier pricing × 2 billing cycles
+
+const TIER_AMOUNTS_PAISE: Record<string, { monthly: number; annual: number }> = {
+  LITE:         { monthly: 9900,     annual: 99000 },     // ₹99/mo   | ₹990/yr
+  STARTER:      { monthly: 29900,    annual: 299000 },    // ₹299/mo  | ₹2,990/yr
+  GROWTH:       { monthly: 69900,    annual: 699000 },    // ₹699/mo  | ₹6,990/yr
+  PROFESSIONAL: { monthly: 149900,   annual: 1499000 },   // ₹1,499/mo | ₹14,990/yr
+  BUSINESS:     { monthly: 299900,   annual: 2999000 },   // ₹2,999/mo | ₹29,990/yr
+  // ENTERPRISE is custom — no fixed price
 };
 
 const TIER_NAMES: Record<string, string> = {
-  SOLO: 'RentFlow Solo',
+  LITE: 'RentFlow Lite',
+  STARTER: 'RentFlow Starter',
   GROWTH: 'RentFlow Growth',
-  SCALE: 'RentFlow Scale',
+  PROFESSIONAL: 'RentFlow Professional',
+  BUSINESS: 'RentFlow Business',
   ENTERPRISE: 'RentFlow Enterprise',
 };
 
@@ -36,11 +43,13 @@ export class RazorpayService {
     }
   }
 
-  async createSubscriptionOrder(tier: string, landlordId: string) {
-    const amount = TIER_AMOUNTS_PAISE[tier];
-    if (!amount) throw new BadRequestException(`Invalid subscription tier: ${tier}`);
+  async createSubscriptionOrder(tier: string, landlordId: string, billingCycle: string = 'MONTHLY') {
+    const tierAmounts = TIER_AMOUNTS_PAISE[tier];
+    if (!tierAmounts) throw new BadRequestException(`Invalid subscription tier: ${tier}`);
 
-    const receiptId = `sub_${landlordId.slice(-8)}_${tier}_${Date.now()}`;
+    const cycle = billingCycle === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY';
+    const amount = cycle === 'ANNUAL' ? tierAmounts.annual : tierAmounts.monthly;
+    const receiptId = `sub_${landlordId.slice(-8)}_${tier}_${cycle}_${Date.now()}`;
 
     if (!this.rzp) {
       // Mock order for local dev when razorpay package not installed
@@ -52,6 +61,7 @@ export class RazorpayService {
         status: 'created',
         keyId: this.keyId,
         tierName: TIER_NAMES[tier],
+        billingCycle: cycle,
       };
     }
 
@@ -62,11 +72,12 @@ export class RazorpayService {
       notes: {
         landlordId,
         tier,
-        description: `${TIER_NAMES[tier]} Monthly Subscription`,
+        billingCycle: cycle,
+        description: `${TIER_NAMES[tier]} ${cycle === 'ANNUAL' ? 'Annual' : 'Monthly'} Subscription`,
       },
     });
 
-    return { ...order, keyId: this.keyId, tierName: TIER_NAMES[tier] };
+    return { ...order, keyId: this.keyId, tierName: TIER_NAMES[tier], billingCycle: cycle };
   }
 
   verifyPaymentSignature(orderId: string, paymentId: string, signature: string): boolean {
@@ -87,7 +98,7 @@ export class RazorpayService {
    * NOT from client input. The order's `notes.tier`/`amount` were set server-side at
    * create time, so a client cannot pay for a cheap tier and claim an expensive one.
    */
-  async getVerifiedTierForOrder(orderId: string, landlordId: string): Promise<string> {
+  async getVerifiedTierForOrder(orderId: string, landlordId: string): Promise<{ tier: string; billingCycle: string }> {
     if (!this.rzp) {
       // razorpay package not installed (local dev mock) — no gateway to verify against.
       throw new BadRequestException('Payment gateway is not configured');
@@ -97,8 +108,11 @@ export class RazorpayService {
     if (!order) throw new BadRequestException('Order not found');
 
     const tier = order.notes?.tier;
-    const expectedAmount = TIER_AMOUNTS_PAISE[tier];
-    if (!tier || !expectedAmount) throw new BadRequestException('Order has no recognised tier');
+    const billingCycle = order.notes?.billingCycle ?? 'MONTHLY';
+    const tierAmounts = TIER_AMOUNTS_PAISE[tier];
+    if (!tier || !tierAmounts) throw new BadRequestException('Order has no recognised tier');
+
+    const expectedAmount = billingCycle === 'ANNUAL' ? tierAmounts.annual : tierAmounts.monthly;
     if (Number(order.amount) !== expectedAmount)
       throw new BadRequestException('Order amount does not match tier');
     if (order.notes?.landlordId && order.notes.landlordId !== landlordId)
@@ -107,6 +121,6 @@ export class RazorpayService {
     if (order.status !== 'paid' && Number(order.amount_paid) < expectedAmount)
       throw new BadRequestException('Order has not been fully paid');
 
-    return tier;
+    return { tier, billingCycle };
   }
 }

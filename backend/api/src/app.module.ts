@@ -34,6 +34,8 @@ import { RentPassModule } from './modules/rentpass/rentpass.module';
 import { UtilitiesModule } from './modules/utilities/utilities.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { ApplicationsModule } from './modules/applications/applications.module';
+import { KycModule } from './modules/kyc/kyc.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 
 @Module({
@@ -77,6 +79,8 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
     UtilitiesModule,
     MessagesModule,
     AnnouncementsModule,
+    ApplicationsModule,
+    KycModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

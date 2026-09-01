@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
 import { User, UserSchema } from './schemas/user.schema';
 import { Organization, OrganizationSchema } from './schemas/organization.schema';
 import { UsersController } from './users.controller';
@@ -15,7 +14,6 @@ import { AuditModule } from '../audit/audit.module';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Organization.name, schema: OrganizationSchema },
-      { name: 'Property', schema: new mongoose.Schema({}, { strict: false, collection: 'properties' }) },
     ]),
     AuditModule,
   ],
