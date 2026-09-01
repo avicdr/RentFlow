@@ -19,8 +19,8 @@ export class TenantsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  create(@CurrentUser('id') userId: string, @Body() dto: CreateTenantDto) {
-    return this.svc.create(userId, dto);
+  create(@CurrentUser() user: any, @Body() dto: CreateTenantDto) {
+    return this.svc.create(user.id, user.role, dto);
   }
 
   @Get()
@@ -69,14 +69,15 @@ export class TenantsController {
   @Put(':id')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  update(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() dto: UpdateTenantDto) {
-    return this.svc.update(id, userId, dto);
+  update(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: UpdateTenantDto) {
+    return this.svc.update(id, user.id, user.role, dto);
   }
 
   @Patch(':id/vacate')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  vacate(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() body: { vacatingDate: string }) {
-    return this.svc.vacate(id, userId, body.vacatingDate);
+  vacate(@Param('id') id: string, @CurrentUser() user: any, @Body() body: { vacatingDate: string }) {
+    return this.svc.vacate(id, user.id, user.role, body.vacatingDate);
   }
 }
+

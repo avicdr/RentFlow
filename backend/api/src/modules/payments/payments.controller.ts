@@ -22,8 +22,8 @@ export class PaymentsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  create(@CurrentUser('id') userId: string, @Body() dto: CreatePaymentDto) {
-    return this.svc.create(userId, dto);
+  create(@CurrentUser() user: any, @Body() dto: CreatePaymentDto) {
+    return this.svc.create(user.id, user.role, dto);
   }
 
   @Get()
@@ -42,8 +42,8 @@ export class PaymentsController {
   @Get('pending-review')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  getPendingReview(@CurrentUser('id') userId: string) {
-    return this.svc.getPendingReview(userId).then(data => ({ data }));
+  getPendingReview(@CurrentUser() user: any) {
+    return this.svc.getPendingReview(user.id, user.role).then(data => ({ data }));
   }
 
   @Get(':id')
@@ -68,23 +68,24 @@ export class PaymentsController {
   @Patch(':id/approve')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  approve(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() dto: ApprovePaymentDto) {
-    return this.svc.approve(id, userId, dto);
+  approve(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: ApprovePaymentDto) {
+    return this.svc.approve(id, user.id, user.role, dto);
   }
 
   @Patch(':id/reject')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  reject(@Param('id') id: string, @CurrentUser('id') userId: string, @Body() dto: RejectPaymentDto) {
-    return this.svc.reject(id, userId, dto);
+  reject(@Param('id') id: string, @CurrentUser() user: any, @Body() dto: RejectPaymentDto) {
+    return this.svc.reject(id, user.id, user.role, dto);
   }
 
   @Patch(':id/under-review')
   @UseGuards(RolesGuard)
   @Roles('LANDLORD', 'PROPERTY_MANAGER')
-  setUnderReview(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.svc.setUnderReview(id, userId);
+  setUnderReview(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.svc.setUnderReview(id, user.id, user.role);
   }
+
 
   @Get(':id/receipt')
   async downloadReceipt(

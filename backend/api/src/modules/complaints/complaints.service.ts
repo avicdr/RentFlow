@@ -59,17 +59,34 @@ export class ComplaintsService {
     const limit = Math.min(50, +(query.limit ?? 20));
     const match: any = { isDeleted: false };
 
-    if (role === 'LANDLORD' || role === 'PROPERTY_MANAGER') {
+    if (role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.complaintModel.db.model('PropertyManagerAssignment');
+      const assignments = await assignmentModel.find({
+        userId: new Types.ObjectId(userId),
+        status: 'ACTIVE',
+        isDeleted: false,
+      }).select('propertyId');
+      const assignedPropIds = assignments.map((a: any) => a.propertyId);
+
+      if (query.propertyId) {
+        const matches = assignedPropIds.some((p: any) => p.toString() === query.propertyId);
+        if (!matches) throw new ForbiddenException('You do not have access to this property');
+        match.propertyId = new Types.ObjectId(query.propertyId);
+      } else {
+        match.propertyId = { $in: assignedPropIds };
+      }
+    } else if (role === 'LANDLORD') {
       match.landlordId = new Types.ObjectId(userId);
+      if (query.propertyId) match.propertyId = new Types.ObjectId(query.propertyId);
     } else if (role === 'TENANT') {
       match.raisedBy = new Types.ObjectId(userId);
+      if (query.propertyId) match.propertyId = new Types.ObjectId(query.propertyId);
     }
     // SUPER_ADMIN: no filter — sees all complaints
 
     if (query.status)     match.status     = query.status;
     if (query.priority)   match.priority   = query.priority;
     if (query.category)   match.category   = query.category;
-    if (query.propertyId) match.propertyId = new Types.ObjectId(query.propertyId);
 
     const basePipeline: any[] = [
       { $match: match },
@@ -130,17 +147,26 @@ export class ComplaintsService {
       .populate('assignedTo', 'firstName lastName');
     if (!complaint || complaint.isDeleted) throw new NotFoundException('Complaint not found');
 
-    // Ownership check — prevent reading another landlord's / tenant's complaint by guessing its id.
-    this.assertCanAccess(complaint, userId, role);
+    await this.assertCanAccess(complaint, userId, role);
     return { data: complaint };
   }
 
   // Landlords/PMs may only touch their own complaints; tenants only the ones they raised.
-  private assertCanAccess(complaint: ComplaintDocument, userId: string, role: string) {
+  private async assertCanAccess(complaint: ComplaintDocument, userId: string, role: string) {
     if (role === 'SUPER_ADMIN') return;
     const raisedById = (complaint.raisedBy as any)?._id?.toString() ?? complaint.raisedBy?.toString();
-    if (role === 'LANDLORD' || role === 'PROPERTY_MANAGER') {
+    if (role === 'LANDLORD') {
       if (complaint.landlordId?.toString() !== userId) throw new ForbiddenException('Access denied');
+    } else if (role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.complaintModel.db.model('PropertyManagerAssignment');
+      const propId = (complaint.propertyId as any)?._id || complaint.propertyId;
+      const assignment = await assignmentModel.findOne({
+        userId: new Types.ObjectId(userId),
+        propertyId: propId,
+        status: 'ACTIVE',
+        isDeleted: false,
+      });
+      if (!assignment) throw new ForbiddenException('Access denied');
     } else if (role === 'TENANT') {
       if (raisedById !== userId) throw new ForbiddenException('Access denied');
     } else {
@@ -149,14 +175,13 @@ export class ComplaintsService {
   }
 
   async updateStatus(id: string, userId: string, role: string, status: string, note?: string) {
-    // Only landlords/PMs (owning the complaint) or admins can change status — not tenants.
     if (!['LANDLORD', 'PROPERTY_MANAGER', 'SUPER_ADMIN'].includes(role))
       throw new ForbiddenException('You are not allowed to change complaint status');
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Complaint not found');
 
     const complaint = await this.complaintModel.findById(id);
     if (!complaint || complaint.isDeleted) throw new NotFoundException('Complaint not found');
-    this.assertCanAccess(complaint, userId, role);
+    await this.assertCanAccess(complaint, userId, role);
 
     const update: any = { status };
     if (status === 'RESOLVED') {

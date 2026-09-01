@@ -7,7 +7,7 @@ import Link from 'next/link';
 import {
   ArrowLeft, MapPin, Users, Bed, Settings, Edit, Building2,
   CreditCard, CheckCircle, XCircle, Clock, Eye, Globe, Share2,
-  Calendar, Check, Copy, MessageCircle, X,
+  Calendar, Check, Copy, MessageCircle, X, ShieldCheck,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -293,6 +293,26 @@ export default function PropertyDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Property Managers */}
+      <Card className="rounded-2xl shadow-xs">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-purple-600 dark:text-purple-400" /> Property Managers
+            </CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Managers assigned to oversee this specific property</p>
+          </div>
+          <Link href="/property-managers">
+            <Button size="sm" variant="outline" className="text-xs gap-1.5 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300">
+              <Users className="h-3.5 w-3.5" /> Manage Team
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <PropertyManagersList propertyId={id} />
+        </CardContent>
+      </Card>
+
       {/* Tenants */}
       <Card className="rounded-2xl shadow-xs">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -330,3 +350,75 @@ export default function PropertyDetailPage() {
     </div>
   );
 }
+
+function PropertyManagersList({ propertyId }: { propertyId: string }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: managersRes, isLoading } = useQuery({
+    queryKey: ['property-assigned-managers', propertyId],
+    queryFn: () => apiClient.get(`/api/v1/property-managers/properties/${propertyId}/managers`).then(r => r.data.data),
+  });
+
+  const { mutate: removeManager } = useMutation({
+    mutationFn: (managerId: string) => apiClient.delete(`/api/v1/property-managers/${managerId}/properties/${propertyId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['property-assigned-managers', propertyId] });
+      toast({ title: 'Manager Removed', description: 'Manager has been unassigned from this property.' });
+    },
+  });
+
+  const managers: any[] = managersRes || [];
+
+  if (isLoading) {
+    return <div className="h-16 bg-muted rounded-xl animate-pulse" />;
+  }
+
+  if (managers.length === 0) {
+    return (
+      <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
+        <p>No property managers assigned to this property yet.</p>
+        <Link href="/property-managers" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
+          + Assign or Invite a Property Manager
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {managers.map((item) => {
+        const m = item.manager || {};
+        return (
+          <div key={item.assignmentId} className="flex items-center justify-between py-3 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 flex items-center justify-center font-bold text-purple-700 dark:text-purple-300">
+                {m.firstName?.[0]}{m.lastName?.[0]}
+              </div>
+              <div>
+                <p className="font-bold text-foreground text-sm">{m.firstName} {m.lastName}</p>
+                <p className="text-muted-foreground text-[11px]">{m.email} {m.phone ? `· ${m.phone}` : ''}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800">
+                {item.status}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeManager(m._id)}
+                className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 h-8 px-2"
+                title="Unassign from this property"
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+

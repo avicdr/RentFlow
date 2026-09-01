@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Building2, Users, CreditCard, MessageSquare,
   BarChart3, ListChecks, Settings, LogOut, Bell, Menu, X,
   ChevronRight, Home, Crown, Sun, Moon, DollarSign, MessageCircle, ClipboardList,
+  ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth.store';
@@ -14,20 +15,35 @@ import apiClient from '@/lib/api-client';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '@/components/theme-provider';
 
-const navigation = [
-  { name: 'Dashboard',    href: '/',                    icon: LayoutDashboard },
-  { name: 'Properties',  href: '/properties',           icon: Building2 },
-  { name: 'Applications',href: '/applications',         icon: ClipboardList },
-  { name: 'Tenants',     href: '/tenants',              icon: Users },
-  { name: 'Finances',    href: '/finances',             icon: DollarSign },
-  { name: 'Payments',    href: '/payments',             icon: CreditCard },
-  { name: 'Messages',    href: '/messages',             icon: MessageCircle },
-  { name: 'Complaints',  href: '/complaints',           icon: MessageSquare },
-  { name: 'Analytics',   href: '/analytics',            icon: BarChart3 },
-  { name: 'Listings',    href: '/listings',             icon: ListChecks },
-  { name: 'Settings',    href: '/settings',             icon: Settings },
-  { name: 'Plan',        href: '/settings/subscription',icon: Crown },
-];
+function getNavigation(role?: string) {
+  if (role === 'PROPERTY_MANAGER') {
+    return [
+      { name: 'Dashboard',    href: '/',                    icon: LayoutDashboard },
+      { name: 'My Properties',href: '/properties',          icon: Building2 },
+      { name: 'Applications',href: '/applications',         icon: ClipboardList },
+      { name: 'Tenants',     href: '/tenants',              icon: Users },
+      { name: 'Payments',    href: '/payments',             icon: CreditCard },
+      { name: 'Messages',    href: '/messages',             icon: MessageCircle },
+      { name: 'Complaints',  href: '/complaints',           icon: MessageSquare },
+    ];
+  }
+
+  return [
+    { name: 'Dashboard',         href: '/',                    icon: LayoutDashboard },
+    { name: 'Properties',       href: '/properties',           icon: Building2 },
+    { name: 'Applications',     href: '/applications',         icon: ClipboardList },
+    { name: 'Tenants',          href: '/tenants',              icon: Users },
+    { name: 'Property Managers', href: '/property-managers',   icon: ShieldCheck },
+    { name: 'Finances',         href: '/finances',             icon: DollarSign },
+    { name: 'Payments',         href: '/payments',             icon: CreditCard },
+    { name: 'Messages',         href: '/messages',             icon: MessageCircle },
+    { name: 'Complaints',       href: '/complaints',           icon: MessageSquare },
+    { name: 'Analytics',        href: '/analytics',            icon: BarChart3 },
+    { name: 'Listings',         href: '/listings',             icon: ListChecks },
+    { name: 'Settings',         href: '/settings',             icon: Settings },
+    { name: 'Plan',             href: '/settings/subscription',icon: Crown },
+  ];
+}
 
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
@@ -48,6 +64,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const navItems = getNavigation(user?.role);
 
   const handleLogout = async () => {
     try { await apiClient.post('/api/v1/auth/logout'); } catch { }
@@ -83,7 +100,9 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
           <div>
             <span className="font-bold text-base text-foreground tracking-tight">RentFlow</span>
-            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Landlord</p>
+            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+              {user?.role === 'PROPERTY_MANAGER' ? 'Manager Portal' : 'Owner Portal'}
+            </p>
           </div>
           <button onClick={onClose} className="ml-auto lg:hidden text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
@@ -98,14 +117,21 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-foreground truncate">{user?.firstName} {user?.lastName}</p>
-              <p className="text-xs text-muted-foreground truncate">{user?.role?.replace('_', ' ')}</p>
+              <span className={cn(
+                'inline-block text-[10px] font-bold px-2 py-0.5 rounded-full mt-0.5',
+                user?.role === 'PROPERTY_MANAGER'
+                  ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                  : 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+              )}>
+                {user?.role === 'PROPERTY_MANAGER' ? 'Property Manager' : 'Owner'}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-          {navigation.map((item) => {
+          {navItems.map((item) => {
             const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
             return (
               <Link
@@ -159,13 +185,15 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 
 function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const pathname = usePathname();
+  const user = useAuthStore((s) => s.user);
   const { data: notifCount } = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: () => apiClient.get('/api/v1/notifications/unread-count').then(r => r.data.data.count),
     refetchInterval: 30000,
   });
 
-  const pageName = navigation.find(n =>
+  const navItems = getNavigation(user?.role);
+  const pageName = navItems.find(n =>
     n.href === '/' ? pathname === '/' : pathname.startsWith(n.href)
   )?.name ?? 'Dashboard';
 

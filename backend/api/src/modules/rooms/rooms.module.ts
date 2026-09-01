@@ -195,14 +195,35 @@ export class RoomsService {
     private subscriptionsService: SubscriptionsService,
   ) { }
 
-  private async assertPropertyOwnership(propertyId: string, userId: string, role: string) {
+  private async assertPropertyOwnership(propertyId: string, userId: string, role: string, requiredPermission?: string) {
     if (!propertyId || !Types.ObjectId.isValid(propertyId))
       throw new BadRequestException('Valid propertyId is required');
     const property = await this.propertyModel.findById(propertyId);
     if (!property) throw new NotFoundException('Property not found');
-    if (role !== 'SUPER_ADMIN' && property.landlordId?.toString() !== userId)
-      throw new ForbiddenException('This property does not belong to you');
-    return property;
+    if (role === 'SUPER_ADMIN') return property;
+    if (role === 'LANDLORD') {
+      if (property.landlordId?.toString() !== userId) {
+        throw new ForbiddenException('This property does not belong to you');
+      }
+      return property;
+    }
+    if (role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.connection.model('PropertyManagerAssignment');
+      const assignment = await assignmentModel.findOne({
+        userId: new Types.ObjectId(userId),
+        propertyId: property._id,
+        status: 'ACTIVE',
+        isDeleted: false,
+      });
+      if (!assignment) {
+        throw new ForbiddenException('You are not assigned as a Property Manager for this property');
+      }
+      if (requiredPermission && (assignment as any).permissions && !(assignment as any).permissions[requiredPermission]) {
+        throw new ForbiddenException(`You do not have permission (${requiredPermission}) on this property`);
+      }
+      return property;
+    }
+    throw new ForbiddenException('Access denied');
   }
 
   async findByProperty(propertyId: string, userId: string, role: string) {

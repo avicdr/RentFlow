@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Tenant, TenantDocument } from './schemas/tenant.schema';
@@ -22,12 +22,67 @@ export class TenantsService {
     private roomsService: RoomsService,
   ) {}
 
-  async create(landlordId: string, dto: any) {
+  private async assertTenantAccess(tenant: TenantDocument, userId: string, role: string, requiredPermission?: string) {
+    if (role === 'SUPER_ADMIN') return;
+    if (role === 'LANDLORD') {
+      if (tenant.landlordId.toString() !== userId) {
+        throw new ForbiddenException('This tenant does not belong to your properties');
+      }
+      return;
+    }
+    if (role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.tenantModel.db.model('PropertyManagerAssignment');
+      const assignment = await assignmentModel.findOne({
+        userId: new Types.ObjectId(userId),
+        propertyId: (tenant.propertyId as any)?._id || tenant.propertyId,
+        status: 'ACTIVE',
+        isDeleted: false,
+      });
+      if (!assignment) {
+        throw new ForbiddenException('You do not have access to this tenant');
+      }
+      if (requiredPermission && (assignment as any).permissions && !(assignment as any).permissions[requiredPermission]) {
+        throw new ForbiddenException(`You do not have permission (${requiredPermission}) on this property`);
+      }
+      return;
+    }
+    throw new ForbiddenException('Access denied');
+  }
+
+  async create(userId: string, role = 'LANDLORD', dto: any) {
+    if (!dto.propertyId || !Types.ObjectId.isValid(dto.propertyId)) {
+      throw new BadRequestException('Valid propertyId is required');
+    }
+
+    const propModel = this.tenantModel.db.model('Property');
+    const property = await propModel.findOne({ _id: new Types.ObjectId(dto.propertyId), isDeleted: false });
+    if (!property) throw new NotFoundException('Property not found');
+
+    if (role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.tenantModel.db.model('PropertyManagerAssignment');
+      const assignment = await assignmentModel.findOne({
+        userId: new Types.ObjectId(userId),
+        propertyId: property._id,
+        status: 'ACTIVE',
+        isDeleted: false,
+      });
+      if (!assignment) {
+        throw new ForbiddenException('You are not assigned as Property Manager for this property');
+      }
+      if (assignment.permissions && !assignment.permissions.manageTenants) {
+        throw new ForbiddenException('You do not have permission to add tenants to this property');
+      }
+    } else if (role !== 'SUPER_ADMIN' && property.landlordId.toString() !== userId) {
+      throw new ForbiddenException('You do not own this property');
+    }
+
+    const landlordId = property.landlordId;
+
     // Check for existing user with this email
     let tenantUser = await this.userModel.findOne({ email: dto.email.toLowerCase() });
 
     if (tenantUser) {
-      if (tenantUser.role !== UserRole.TENANT)
+      if (tenantUser.role !== UserRole.TENANT && tenantUser.role !== UserRole.PROPERTY_MANAGER)
         throw new BadRequestException('A user with this email exists with a different role');
       const existingTenant = await this.tenantModel.findOne({ userId: tenantUser._id, isDeleted: false });
       if (existingTenant) throw new ConflictException('This user is already a tenant');
@@ -45,15 +100,13 @@ export class TenantsService {
         status: UserStatus.ACTIVE,
         isEmailVerified: true,
       });
-      // Send welcome email with credentials
-      // In production: send actual credentials or invite link
     }
 
     const tenant = await this.tenantModel.create({
       userId: tenantUser._id,
-      landlordId: new Types.ObjectId(landlordId),
-      organizationId: new Types.ObjectId(landlordId),
-      propertyId: new Types.ObjectId(dto.propertyId),
+      landlordId,
+      organizationId: property.organizationId || landlordId,
+      propertyId: property._id,
       roomId: new Types.ObjectId(dto.roomId),
       bedId: dto.bedId ? new Types.ObjectId(dto.bedId) : null,
       joiningDate: new Date(dto.joiningDate),
@@ -70,7 +123,7 @@ export class TenantsService {
       'Your landlord has added you to RentFlow. Login to manage your rent payments.',
     );
 
-    await this.auditService.log(landlordId, 'TENANT_ONBOARDED', 'Tenant', tenant._id.toString(), {}, {
+    await this.auditService.log(userId, 'TENANT_ONBOARDED', 'Tenant', tenant._id.toString(), {}, {
       tenantEmail: dto.email, propertyId: dto.propertyId,
     });
 
@@ -80,15 +133,33 @@ export class TenantsService {
     return { message: 'Tenant added successfully', data: { tenant, tenantUser: { id: tenantUser._id, email: tenantUser.email } } };
   }
 
-  async findAll(landlordId: string, query: any) {
+  async findAll(userId: string, query: any) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const filter: any = { isDeleted: false };
-    if (query.role !== 'SUPER_ADMIN') {
-      filter.landlordId = new Types.ObjectId(landlordId);
+
+    if (query.role === 'PROPERTY_MANAGER') {
+      const assignmentModel = this.tenantModel.db.model('PropertyManagerAssignment');
+      const assignments = await assignmentModel.find({
+        userId: new Types.ObjectId(userId),
+        status: 'ACTIVE',
+        isDeleted: false,
+      }).select('propertyId');
+      const assignedPropIds = assignments.map((a: any) => a.propertyId);
+
+      if (query.propertyId) {
+        const matches = assignedPropIds.some((p: any) => p.toString() === query.propertyId);
+        if (!matches) throw new ForbiddenException('You do not have access to this property');
+        filter.propertyId = new Types.ObjectId(query.propertyId);
+      } else {
+        filter.propertyId = { $in: assignedPropIds };
+      }
+    } else if (query.role !== 'SUPER_ADMIN') {
+      filter.landlordId = new Types.ObjectId(userId);
+      if (query.propertyId) filter.propertyId = new Types.ObjectId(query.propertyId);
     }
+
     if (query.status) filter.status = query.status;
-    if (query.propertyId) filter.propertyId = new Types.ObjectId(query.propertyId);
 
     const [tenants, total] = await Promise.all([
       this.tenantModel
@@ -106,11 +177,10 @@ export class TenantsService {
     return { data: tenants, meta: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   }
 
-  async findOne(id: string, landlordId: string, role?: string) {
+  async findOne(id: string, userId: string, role = 'LANDLORD') {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant not found');
     const oid = new Types.ObjectId(id);
 
-    // 1. Try finding by Tenant _id
     let tenant = await this.tenantModel
       .findOne({ _id: oid, isDeleted: false })
       .populate('userId', 'firstName lastName email phone profile status isEmailVerified isPhoneVerified')
@@ -119,7 +189,6 @@ export class TenantsService {
       .populate('bedId', 'bedNumber')
       .populate('landlordId', 'firstName lastName email phone');
 
-    // 2. If not found by _id, try finding by userId (e.g. from users list)
     if (!tenant) {
       tenant = await this.tenantModel
         .findOne({ userId: oid, isDeleted: false })
@@ -131,21 +200,22 @@ export class TenantsService {
     }
 
     if (!tenant) throw new NotFoundException('Tenant not found');
+    await this.assertTenantAccess(tenant, userId, role, 'viewTenants');
     return { data: tenant };
   }
 
-  async getStayHistory(id: string, landlordId: string, role?: string) {
+  async getStayHistory(id: string, userId: string, role = 'LANDLORD') {
     if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant record not found');
     const oid = new Types.ObjectId(id);
 
-    // Resolve userId
-    let userId = oid;
+    let resolvedUserId = oid;
     const tenantRec = await this.tenantModel.findById(oid);
     if (tenantRec) {
-      userId = tenantRec.userId;
+      await this.assertTenantAccess(tenantRec, userId, role, 'viewTenants');
+      resolvedUserId = tenantRec.userId;
     }
 
-    const filter: any = { userId, isDeleted: false };
+    const filter: any = { userId: resolvedUserId, isDeleted: false };
     const stays = await this.tenantModel
       .find(filter)
       .populate('propertyId', 'name address type city state')
@@ -167,32 +237,39 @@ export class TenantsService {
     return { data: tenant };
   }
 
-  async update(id: string, landlordId: string, dto: any) {
-    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(id), landlordId: new Types.ObjectId(landlordId) });
+  async update(id: string, userId: string, role: string, dto: any) {
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant not found');
+    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(id), isDeleted: false });
     if (!tenant) throw new NotFoundException('Tenant not found');
+    await this.assertTenantAccess(tenant, userId, role, 'manageTenants');
+
     await this.tenantModel.updateOne({ _id: tenant._id }, { $set: dto });
-    await this.auditService.log(landlordId, 'TENANT_UPDATED', 'Tenant', id, {}, dto);
+    await this.auditService.log(userId, 'TENANT_UPDATED', 'Tenant', id, {}, dto);
     return { message: 'Tenant updated' };
   }
 
-  async vacate(id: string, landlordId: string, vacatingDate: string) {
-    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(id), landlordId: new Types.ObjectId(landlordId) });
+  async vacate(id: string, userId: string, role: string, vacatingDate: string) {
+    if (!Types.ObjectId.isValid(id)) throw new NotFoundException('Tenant not found');
+    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(id), isDeleted: false });
     if (!tenant) throw new NotFoundException('Tenant not found');
+    await this.assertTenantAccess(tenant, userId, role, 'manageTenants');
+
     await this.tenantModel.updateOne({ _id: tenant._id }, {
       status: 'VACATED', vacatingDate: new Date(vacatingDate),
     });
-    await this.auditService.log(landlordId, 'TENANT_VACATED', 'Tenant', id, { status: 'ACTIVE' }, { status: 'VACATED', vacatingDate });
+    await this.auditService.log(userId, 'TENANT_VACATED', 'Tenant', id, { status: 'ACTIVE' }, { status: 'VACATED', vacatingDate });
 
-    // Sync room occupancy after tenant is vacated
     if (tenant.roomId) await this.roomsService.syncRoomOccupancy(tenant.roomId);
 
     return { message: 'Tenant marked as vacated' };
   }
 
-  async getPaymentHistory(tenantId: string, landlordId: string) {
-    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(tenantId), landlordId: new Types.ObjectId(landlordId) });
+  async getPaymentHistory(tenantId: string, userId: string, role = 'LANDLORD') {
+    if (!Types.ObjectId.isValid(tenantId)) throw new NotFoundException('Tenant not found');
+    const tenant = await this.tenantModel.findOne({ _id: new Types.ObjectId(tenantId), isDeleted: false });
     if (!tenant) throw new NotFoundException('Tenant not found');
-    // Payment history is fetched by PaymentsService filtered by tenantId
+    await this.assertTenantAccess(tenant, userId, role, 'viewPayments');
     return { data: { tenantId, message: 'Use /payments?tenantId= for payment history' } };
   }
 }
+
